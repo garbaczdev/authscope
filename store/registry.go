@@ -18,25 +18,29 @@ type AuthInfo struct {
 // Why this middleware is needed is because there is both a memory store and an
 // in-memory structure.
 type Registry struct {
-
+	DBPath string
 }
 
 func (r *Registry) Authorize(token string) (authInfo AuthInfo, err error) {
 	return AuthInfo{}, nil
 }
 
-func (r *Registry) List(count int, offset int) (keyViews []KeyView, err error) {
-	return nil, nil
+func (r *Registry) Get(keyID uint) (keyView KeyView, err error) {
+	return KeyView{}, nil
 }
 
 func (r *Registry) Delete(keyID uint) (err error) {
 	return nil
 }
 
-func (r *Registry) Create(keyView KeyView) (createdKeyView KeyView, err error) {
-	return KeyView{}, nil
+func (r *Registry) Create(keyView KeyView) (createdKeyView KeyView, token string, err error) {
+	return KeyView{}, "", nil
 }
 
 func (r *Registry) Update(keyView KeyView) (err error) {
 	return nil
+}
+
+func (r *Registry) List(count int, offset int) (keyViews []KeyView, err error) {
+	return nil, nil
 }

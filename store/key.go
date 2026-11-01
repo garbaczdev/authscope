@@ -7,7 +7,7 @@ import (
 )
 
 // Database model for a key
-type Key struct {
+type keyRow struct {
 	gorm.Model
 	// Whether this key is active
 	IsActive bool
@@ -22,20 +22,20 @@ type Key struct {
 	// Hashed key with SHA256 algorithm
 	TokenSHA256 string
 }
-func (k Key) ToView() KeyView {
-	return KeyView{
-		IsActive: k.IsActive,
-		Environment: k.Environment,
-		Source: k.Source,
-		Description: k.Description,
-		id: k.ID,
-		createdAt: k.CreatedAt,
-		tokenPrefix: k.TokenPrefix,
+func (kr keyRow) ToKey() Key {
+	return Key{
+		IsActive: kr.IsActive,
+		Environment: kr.Environment,
+		Source: kr.Source,
+		Description: kr.Description,
+		id: kr.ID,
+		createdAt: kr.CreatedAt,
+		tokenPrefix: kr.TokenPrefix,
 	}
 }
 
 // A view structure representing the database state of a key.
-type KeyView struct {
+type Key struct {
 	IsActive    bool
 	Environment string
 	Source      string
@@ -47,12 +47,12 @@ type KeyView struct {
 	tokenPrefix string
 }
 
-func (k KeyView) GetID() uint {
+func (k Key) GetID() uint {
 	return k.id
 }
-func (k KeyView) GetCreatedAt() time.Time {
+func (k Key) GetCreatedAt() time.Time {
 	return k.createdAt
 }
-func (k KeyView) GetTokenPrefix() string {
+func (k Key) GetTokenPrefix() string {
 	return k.tokenPrefix
 }

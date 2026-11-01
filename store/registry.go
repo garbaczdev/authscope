@@ -35,7 +35,7 @@ func NewRegistry(DBPath string) (*Registry, error) {
 			return nil, err
 	}
 	// Perform migrations
-	err = db.AutoMigrate(&Key{})
+	err = db.AutoMigrate(&keyRow{})
 	if err != nil {
 		return nil, err
 	}
@@ -58,21 +58,21 @@ func (r *Registry) Authorize(token string) (authInfo AuthInfo, err error) {
 	return AuthInfo{}, nil
 }
 
-func (r *Registry) Get(keyID uint) (keyView KeyView, err error) {
+func (r *Registry) Get(keyID uint) (key Key, err error) {
 	// Lookup a key by it's ID
-	var key Key
-	if err = r.db.First(&key, keyID).Error; err != nil {
-		return keyView, err
+	var kr keyRow
+	if err = r.db.First(&kr, keyID).Error; err != nil {
+		return key, err
 	}
-	return key.ToView(), nil
+	return kr.ToKey(), nil
 }
 
 func (r *Registry) Delete(keyID uint) (err error) {
 	return nil
 }
 
-func (r *Registry) Create(keyView KeyView) (
-	createdKeyView KeyView,
+func (r *Registry) Create(key Key) (
+	createdKey Key,
 	token string,
 	err error,
 ) {
@@ -84,25 +84,25 @@ func (r *Registry) Create(keyView KeyView) (
 	tokenSHA256 := ""
 
 	// Create key in db
-	key := &Key{
-		IsActive: keyView.IsActive,
-		Environment: keyView.Environment,
-		Source: keyView.Source,
-		Description: keyView.Description,
+	kr := &keyRow{
+		IsActive: key.IsActive,
+		Environment: key.Environment,
+		Source: key.Source,
+		Description: key.Description,
 		TokenPrefix: tokenPrefix,
 		TokenSHA256: tokenSHA256,
 	}
-	if err = r.db.Create(key).Error; err != nil {
-		return createdKeyView, "", nil
+	if err = r.db.Create(kr).Error; err != nil {
+		return createdKey, "", nil
 	}
 
-	return key.ToView(), token, nil
+	return kr.ToKey(), token, nil
 }
 
-func (r *Registry) Update(keyView KeyView) (err error) {
+func (r *Registry) Update(key Key) (err error) {
 	return nil
 }
 
-func (r *Registry) List(count int, offset int) (keyViews []KeyView, err error) {
+func (r *Registry) List(count int, offset int) (keys []Key, err error) {
 	return nil, nil
 }

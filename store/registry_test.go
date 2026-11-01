@@ -32,7 +32,7 @@ func TestCreateDeleteKey(t *testing.T) {
 	}
 
 	// Create a key
-	keyToCreate := KeyView{
+	keyToCreate := Key{
 		IsActive:    true,
 		Environment: "env",
 		Source:      "src",
@@ -71,7 +71,7 @@ func TestGetKey(t *testing.T) {
 	defer reg.Close()
 
 	// Create a key
-	keyToCreate := KeyView{
+	keyToCreate := Key{
 		IsActive:    true,
 		Environment: "env",
 		Source:      "src",
@@ -131,7 +131,7 @@ func TestAuthorizeKey(t *testing.T) {
 	defer reg.Close()
 
 	// Create a key
-	keyToCreate := KeyView{
+	keyToCreate := Key{
 		IsActive:    true,
 		Environment: "env",
 		Source:      "src",
@@ -171,7 +171,7 @@ func TestUpdateKey(t *testing.T) {
 	defer reg.Close()
 
 	// Create a key
-	keyToCreate := KeyView{
+	keyToCreate := Key{
 		IsActive:    true,
 		Environment: "env",
 		Source:      "src",

@@ -25,16 +25,17 @@ type Key struct {
 
 // A view structure representing the database state of a key.
 type KeyView struct {
-	IsActive bool
+	IsActive    bool
 	Environment string
-	Source string
+	Source      string
 	Description string
 
 	// Read-Only attributes: should not be changed from outside store package
-	id uint
-	createdAt time.Time
+	id          uint
+	createdAt   time.Time
 	tokenPrefix string
 }
+
 func (k KeyView) GetID() uint {
 	return k.id
 }

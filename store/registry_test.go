@@ -27,9 +27,9 @@ func TestCreateDeleteKey(t *testing.T) {
 
 	// Create a key
 	keyToCreate := KeyView{
-		IsActive: true,
+		IsActive:    true,
 		Environment: "env",
-		Source: "src",
+		Source:      "src",
 		Description: "src",
 	}
 	createdKey, _, err := reg.Create(keyToCreate)
@@ -65,9 +65,9 @@ func TestGetKey(t *testing.T) {
 
 	// Create a key
 	keyToCreate := KeyView{
-		IsActive: true,
+		IsActive:    true,
 		Environment: "env",
-		Source: "src",
+		Source:      "src",
 		Description: "src",
 	}
 	createdKey, _, err := reg.Create(keyToCreate)
@@ -124,9 +124,9 @@ func TestAuthorizeKey(t *testing.T) {
 
 	// Create a key
 	keyToCreate := KeyView{
-		IsActive: true,
+		IsActive:    true,
 		Environment: "env",
-		Source: "src",
+		Source:      "src",
 		Description: "src",
 	}
 	_, token, err := reg.Create(keyToCreate)
@@ -163,9 +163,9 @@ func TestUpdateKey(t *testing.T) {
 
 	// Create a key
 	keyToCreate := KeyView{
-		IsActive: true,
+		IsActive:    true,
 		Environment: "env",
-		Source: "src",
+		Source:      "src",
 		Description: "src",
 	}
 	createdKey, token, err := reg.Create(keyToCreate)

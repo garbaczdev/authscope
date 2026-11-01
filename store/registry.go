@@ -1,6 +1,5 @@
 package store
 
-
 type AuthInfo struct {
 	// true if the token is authorized
 	IsAuthorized bool
@@ -9,7 +8,6 @@ type AuthInfo struct {
 	// Name of the key's source
 	Source string
 }
-
 
 // The purpose of this object is to act as middleware between key store and clients.
 // There are 2 types of clients:

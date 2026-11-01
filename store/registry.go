@@ -71,11 +71,7 @@ func (r *Registry) Delete(keyID uint) (err error) {
 	return nil
 }
 
-func (r *Registry) Create(key Key) (
-	createdKey Key,
-	token string,
-	err error,
-) {
+func (r *Registry) Create(key *Key) (token string, err error) {
 	// Generate a token
 	token = "aaaaaaaaaaaaaaaaaaaaaaaa"
 	tokenPrefix := token[:TokenPrefixLen]
@@ -84,7 +80,7 @@ func (r *Registry) Create(key Key) (
 	tokenSHA256 := ""
 
 	// Create key in db
-	kr := &keyRow{
+	kr := keyRow{
 		IsActive: key.IsActive,
 		Environment: key.Environment,
 		Source: key.Source,
@@ -92,14 +88,17 @@ func (r *Registry) Create(key Key) (
 		TokenPrefix: tokenPrefix,
 		TokenSHA256: tokenSHA256,
 	}
-	if err = r.db.Create(kr).Error; err != nil {
-		return createdKey, "", nil
+	if err = r.db.Create(&kr).Error; err != nil {
+		return "", nil
 	}
 
-	return kr.ToKey(), token, nil
+	// Update the provided key
+	*key = kr.ToKey()
+
+	return token, nil
 }
 
-func (r *Registry) Update(key Key) (err error) {
+func (r *Registry) Update(key *Key) (err error) {
 	return nil
 }
 

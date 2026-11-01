@@ -38,7 +38,9 @@ func TestCreateDeleteKey(t *testing.T) {
 		Source:      "src",
 		Description: "src",
 	}
-	createdKey, _, err := reg.Create(keyToCreate)
+	createdKey := keyToCreate
+
+	token, err := reg.Create(&createdKey)
 	if err != nil {
 		t.Fatalf("could not create a key: %v", err)
 	}
@@ -56,6 +58,7 @@ func TestCreateDeleteKey(t *testing.T) {
 	if err = reg.Delete(createdKey.GetID()); err != nil {
 		t.Fatalf("could not delete the created key: %v", err)
 	}
+
 	// Ensure the deletion was correct
 	keys, err = reg.List(10, 0)
 	if err != nil {
@@ -64,6 +67,21 @@ func TestCreateDeleteKey(t *testing.T) {
 	if len(keys) != 0 {
 		t.Fatalf("there are %d keys after deleting created key", len(keys))
 	}
+
+	if _, err := reg.Get(createdKey.GetID()); err == nil {
+		t.Fatalf("key returned by get after deletion")
+	}
+
+	// Check authorization after deletion
+	authInfo, err := reg.Authorize(token)
+	if err != nil {
+		t.Fatalf("could not authorize the created key: %v", err)
+	}
+	if authInfo.IsAuthorized {
+		t.Errorf("just deleted key is still authorized")
+	}
+
+	
 }
 
 func TestGetKey(t *testing.T) {
@@ -77,7 +95,9 @@ func TestGetKey(t *testing.T) {
 		Source:      "src",
 		Description: "src",
 	}
-	createdKey, _, err := reg.Create(keyToCreate)
+	createdKey := keyToCreate
+
+	_, err := reg.Create(&createdKey)
 	if err != nil {
 		t.Fatalf("could not create a key: %v", err)
 	}
@@ -137,7 +157,8 @@ func TestAuthorizeKey(t *testing.T) {
 		Source:      "src",
 		Description: "src",
 	}
-	_, token, err := reg.Create(keyToCreate)
+	createdKey := keyToCreate
+	token, err := reg.Create(&createdKey)
 	if err != nil {
 		t.Fatalf("could not create a key: %v", err)
 	}
@@ -177,20 +198,21 @@ func TestUpdateKey(t *testing.T) {
 		Source:      "src",
 		Description: "src",
 	}
-	createdKey, token, err := reg.Create(keyToCreate)
+	createdKey := keyToCreate
+	token, err := reg.Create(&createdKey)
 	if err != nil {
 		t.Fatalf("could not create a key: %v", err)
 	}
 
 	// Ensure key without ID cannot be updated!
-	if err = reg.Update(keyToCreate); err == nil {
+	if err = reg.Update(&keyToCreate); err == nil {
 		t.Fatalf("update for key without id is allowed!")
 	}
 
 	// Update the created key
 	createdKey.Environment = "changedEnv"
 	createdKey.Source = "changedSource"
-	if err = reg.Update(createdKey); err != nil {
+	if err = reg.Update(&createdKey); err != nil {
 		t.Fatalf("could not update the key: %v", err)
 	}
 

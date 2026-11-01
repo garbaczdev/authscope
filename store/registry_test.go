@@ -1,26 +1,28 @@
 package store
 
 import (
+	"path/filepath"
 	"testing"
-	"os"
 )
 
+func newTestRegistry(t *testing.T) *Registry {
+	// Make sure this does not get recognized as a test
+	t.Helper()
+	// Create a temporary directory for the database files
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	return &Registry{DBPath: dbPath}
+}
+
 func TestCreateDeleteKey(t *testing.T) {
-	// Setup tmp db
-	f, err := os.CreateTemp("", "test-*.db")
-	if err != nil {
-		t.Fatalf("could not create temp file for db: %v", err)
-	}
-	defer os.Remove(f.Name())
-	reg := Registry{DBPath: f.Name()}
+	reg := newTestRegistry(t)
 
 	// Ensure there are no keys at the start
-	keyViews, err := reg.List(1, 0)
+	keys, err := reg.List(10, 0)
 	if err != nil {
-		t.Fatalf("could not list keyViews: %v", err)
+		t.Fatalf("could not list keys: %v", err)
 	}
-	if len(keyViews) != 0 {
-		t.Fatalf("there are %d keyViews in a newly initialized db", len(keyViews))
+	if len(keys) != 0 {
+		t.Fatalf("there are %d keys in a newly initialized db", len(keys))
 	}
 
 	// Create a key
@@ -36,12 +38,12 @@ func TestCreateDeleteKey(t *testing.T) {
 	}
 
 	// Ensure that there is a key in the database
-	keyViews, err = reg.List(1, 0)
+	keys, err = reg.List(10, 0)
 	if err != nil {
-		t.Fatalf("could not list keyViews: %v", err)
+		t.Fatalf("could not list keys: %v", err)
 	}
-	if len(keyViews) != 1 {
-		t.Fatalf("there are %d keyViews after creating 1 key", len(keyViews))
+	if len(keys) != 1 {
+		t.Fatalf("there are %d keys after creating 1 key", len(keys))
 	}
 
 	// Delete the created key
@@ -49,23 +51,17 @@ func TestCreateDeleteKey(t *testing.T) {
 		t.Fatalf("could not delete the created key: %v", err)
 	}
 	// Ensure the deletion was correct
-	keyViews, err = reg.List(1, 0)
+	keys, err = reg.List(10, 0)
 	if err != nil {
-		t.Fatalf("could not list keyViews: %v", err)
+		t.Fatalf("could not list keys: %v", err)
 	}
-	if len(keyViews) != 0 {
-		t.Fatalf("there are %d keyViews after deleting created key", len(keyViews))
+	if len(keys) != 0 {
+		t.Fatalf("there are %d keys after deleting created key", len(keys))
 	}
 }
 
 func TestGetKey(t *testing.T) {
-	// Setup tmp db
-	f, err := os.CreateTemp("", "test-*.db")
-	if err != nil {
-		t.Fatalf("could not create temp file for db: %v", err)
-	}
-	defer os.Remove(f.Name())
-	reg := Registry{DBPath: f.Name()}
+	reg := newTestRegistry(t)
 
 	// Create a key
 	keyToCreate := KeyView{
@@ -86,6 +82,13 @@ func TestGetKey(t *testing.T) {
 	}
 
 	// Compare whether all fields are correct
+	if createdKey.GetID() != fetchedKey.GetID() {
+		t.Errorf(
+			"key ID is not correct, expected=%d, got=%d",
+			createdKey.GetID(),
+			fetchedKey.GetID(),
+		)
+	}
 	if keyToCreate.IsActive != fetchedKey.IsActive {
 		t.Errorf(
 			"key IsActive is not correct, expected=%t, got=%t",
@@ -117,13 +120,7 @@ func TestGetKey(t *testing.T) {
 }
 
 func TestAuthorizeKey(t *testing.T) {
-	// Setup tmp db
-	f, err := os.CreateTemp("", "test-*.db")
-	if err != nil {
-		t.Fatalf("could not create temp file for db: %v", err)
-	}
-	defer os.Remove(f.Name())
-	reg := Registry{DBPath: f.Name()}
+	reg := newTestRegistry(t)
 
 	// Create a key
 	keyToCreate := KeyView{
@@ -162,13 +159,7 @@ func TestAuthorizeKey(t *testing.T) {
 }
 
 func TestUpdateKey(t *testing.T) {
-	// Setup tmp db
-	f, err := os.CreateTemp("", "test-*.db")
-	if err != nil {
-		t.Fatalf("could not create temp file for db: %v", err)
-	}
-	defer os.Remove(f.Name())
-	reg := Registry{DBPath: f.Name()}
+	reg := newTestRegistry(t)
 
 	// Create a key
 	keyToCreate := KeyView{

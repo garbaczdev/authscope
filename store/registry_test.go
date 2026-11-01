@@ -10,11 +10,17 @@ func newTestRegistry(t *testing.T) *Registry {
 	t.Helper()
 	// Create a temporary directory for the database files
 	dbPath := filepath.Join(t.TempDir(), "test.db")
-	return &Registry{DBPath: dbPath}
+	// Create the registry for testing
+	reg, err := NewRegistry(dbPath)
+	if err != nil {
+		t.Fatalf("could not create the registry: %v", err)
+	}
+	return reg
 }
 
 func TestCreateDeleteKey(t *testing.T) {
 	reg := newTestRegistry(t)
+	defer reg.Close()
 
 	// Ensure there are no keys at the start
 	keys, err := reg.List(10, 0)
@@ -62,6 +68,7 @@ func TestCreateDeleteKey(t *testing.T) {
 
 func TestGetKey(t *testing.T) {
 	reg := newTestRegistry(t)
+	defer reg.Close()
 
 	// Create a key
 	keyToCreate := KeyView{
@@ -121,6 +128,7 @@ func TestGetKey(t *testing.T) {
 
 func TestAuthorizeKey(t *testing.T) {
 	reg := newTestRegistry(t)
+	defer reg.Close()
 
 	// Create a key
 	keyToCreate := KeyView{
@@ -160,6 +168,7 @@ func TestAuthorizeKey(t *testing.T) {
 
 func TestUpdateKey(t *testing.T) {
 	reg := newTestRegistry(t)
+	defer reg.Close()
 
 	// Create a key
 	keyToCreate := KeyView{

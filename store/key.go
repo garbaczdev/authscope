@@ -22,6 +22,17 @@ type Key struct {
 	// Hashed key with SHA256 algorithm
 	TokenSHA256 string
 }
+func (k Key) ToView() KeyView {
+	return KeyView{
+		IsActive: k.IsActive,
+		Environment: k.Environment,
+		Source: k.Source,
+		Description: k.Description,
+		id: k.ID,
+		createdAt: k.CreatedAt,
+		tokenPrefix: k.TokenPrefix,
+	}
+}
 
 // A view structure representing the database state of a key.
 type KeyView struct {

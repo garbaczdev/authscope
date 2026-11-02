@@ -2,7 +2,10 @@ package store
 
 import (
 	"errors"
+	"math"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -321,5 +324,257 @@ func TestUpdateRejectsInvalidKey(t *testing.T) {
 			fetched.Source,
 			fetched.Description,
 		)
+	}
+}
+
+func TestNewRegistryRejectsBadPaths(t *testing.T) {
+	notADatabase := filepath.Join(t.TempDir(), "not-a-database")
+	if err := os.WriteFile(notADatabase, []byte("this is not a database"), 0o600); err != nil {
+		t.Fatalf("could not create test file: %v", err)
+	}
+
+	paths := []struct {
+		name string
+		path string
+	}{
+		{"empty", ""},
+		{"whitespace", "   "},
+		{"directory", t.TempDir()},
+		{"missing parent", filepath.Join(t.TempDir(), "missing", "test.db")},
+		{"not a database", notADatabase},
+	}
+
+	for _, tc := range paths {
+		reg, err := NewRegistry(tc.path)
+		if err == nil {
+			_ = reg.Close()
+			t.Errorf("%s: NewRegistry() succeeded, want an error", tc.name)
+		}
+	}
+}
+
+func TestAuthorizeRejectsBadTokens(t *testing.T) {
+	reg := newTestRegistry(t)
+	defer reg.Close()
+
+	tokens := []struct {
+		name  string
+		token string
+	}{
+		{"empty", ""},
+		{"whitespace", "   "},
+		{"nul byte", "authscope-\x00"},
+		{"invalid utf8", string([]byte{0xff, 0xfe})},
+		{"sql injection", "' OR 1=1 --"},
+		{"oversized", strings.Repeat("a", maxTokenLen+1)},
+	}
+
+	for _, tc := range tokens {
+		info, err := reg.Authorize(tc.token)
+		if err != nil {
+			t.Errorf("%s: Authorize() error = %v, want nil", tc.name, err)
+		}
+		if info.IsAuthorized {
+			t.Errorf("%s: Authorize() authorized an invalid token", tc.name)
+		}
+	}
+}
+
+func TestGetInvalidIDs(t *testing.T) {
+	reg := newTestRegistry(t)
+	defer reg.Close()
+
+	ids := []struct {
+		name string
+		id   uint
+	}{
+		{"zero", 0},
+		{"unknown", 42},
+		{"max uint", math.MaxUint},
+	}
+
+	for _, tc := range ids {
+		key, ok, err := reg.Get(tc.id)
+		if err != nil {
+			t.Errorf("%s: Get() error = %v, want nil", tc.name, err)
+		}
+		if ok {
+			t.Errorf("%s: Get() returned ok=true, want false", tc.name)
+		}
+		if key.GetID() != 0 {
+			t.Errorf("%s: Get() returned a key, want the zero Key", tc.name)
+		}
+	}
+}
+
+func TestCreateRejectsKeyWithID(t *testing.T) {
+	reg := newTestRegistry(t)
+	defer reg.Close()
+
+	createdKey, _, err := reg.Create(Key{
+		IsActive:    true,
+		Environment: "env",
+		Source:      "src",
+	})
+	if err != nil {
+		t.Fatalf("could not create a key: %v", err)
+	}
+
+	if _, _, err := reg.Create(createdKey); !errors.Is(err, ErrInvalidKey) {
+		t.Fatalf("Create() error = %v, want ErrInvalidKey", err)
+	}
+
+	keys, err := reg.List(10, 0)
+	if err != nil {
+		t.Fatalf("could not list keys: %v", err)
+	}
+	if len(keys) != 1 {
+		t.Fatalf("there are %d keys after a rejected create", len(keys))
+	}
+}
+
+func TestUpdateMissingIDs(t *testing.T) {
+	reg := newTestRegistry(t)
+	defer reg.Close()
+
+	createdKey, _, err := reg.Create(Key{
+		IsActive:    true,
+		Environment: "env",
+		Source:      "src",
+	})
+	if err != nil {
+		t.Fatalf("could not create a key: %v", err)
+	}
+	if err := reg.Delete(createdKey.GetID()); err != nil {
+		t.Fatalf("could not delete the key: %v", err)
+	}
+
+	keys := []struct {
+		name string
+		key  Key
+	}{
+		{"zero id", Key{IsActive: true, Environment: "env", Source: "src"}},
+		{"unknown id", Key{IsActive: true, Environment: "env", Source: "src", id: 42}},
+		{"max uint id", Key{IsActive: true, Environment: "env", Source: "src", id: math.MaxUint}},
+		{"deleted id", createdKey},
+	}
+
+	for _, tc := range keys {
+		if _, err := reg.Update(tc.key); !errors.Is(err, ErrKeyNotFound) {
+			t.Errorf("%s: Update() error = %v, want ErrKeyNotFound", tc.name, err)
+		}
+	}
+}
+
+func TestDeleteMissingIDs(t *testing.T) {
+	reg := newTestRegistry(t)
+	defer reg.Close()
+
+	ids := []struct {
+		name string
+		id   uint
+	}{
+		{"zero", 0},
+		{"unknown", 42},
+		{"max uint", math.MaxUint},
+	}
+
+	for _, tc := range ids {
+		if err := reg.Delete(tc.id); !errors.Is(err, ErrKeyNotFound) {
+			t.Errorf("%s: Delete() error = %v, want ErrKeyNotFound", tc.name, err)
+		}
+	}
+
+	first, _, err := reg.Create(Key{IsActive: true, Environment: "env", Source: "first"})
+	if err != nil {
+		t.Fatalf("could not create the first key: %v", err)
+	}
+	second, _, err := reg.Create(Key{IsActive: true, Environment: "env", Source: "second"})
+	if err != nil {
+		t.Fatalf("could not create the second key: %v", err)
+	}
+
+	if err := reg.Delete(first.GetID()); err != nil {
+		t.Fatalf("could not delete the first key: %v", err)
+	}
+	if err := reg.Delete(first.GetID()); !errors.Is(err, ErrKeyNotFound) {
+		t.Errorf("second Delete() error = %v, want ErrKeyNotFound", err)
+	}
+	if _, ok, err := reg.Get(second.GetID()); err != nil {
+		t.Errorf("Get() error = %v, want nil", err)
+	} else if !ok {
+		t.Error("deleting one key removed another")
+	}
+}
+
+func TestListRejectsInvalidPagination(t *testing.T) {
+	reg := newTestRegistry(t)
+	defer reg.Close()
+
+	invalid := []struct {
+		name   string
+		limit  int
+		offset int
+	}{
+		{"zero limit", 0, 0},
+		{"negative limit", -1, 0},
+		{"limit too large", MaxListLimit + 1, 0},
+		{"max int limit", math.MaxInt, 0},
+		{"negative offset", 1, -1},
+	}
+
+	for _, tc := range invalid {
+		if _, err := reg.List(tc.limit, tc.offset); !errors.Is(err, ErrInvalidPagination) {
+			t.Errorf("%s: List() error = %v, want ErrInvalidPagination", tc.name, err)
+		}
+	}
+
+	valid := []struct {
+		name   string
+		limit  int
+		offset int
+	}{
+		{"minimum limit", 1, 0},
+		{"maximum limit", MaxListLimit, 0},
+		{"large offset", 1, 1 << 20},
+	}
+
+	for _, tc := range valid {
+		keys, err := reg.List(tc.limit, tc.offset)
+		if err != nil {
+			t.Errorf("%s: List() error = %v, want nil", tc.name, err)
+			continue
+		}
+		if keys == nil {
+			t.Errorf("%s: List() returned a nil slice, want an empty slice", tc.name)
+		}
+		if len(keys) != 0 {
+			t.Errorf("%s: List() returned %d keys, want 0", tc.name, len(keys))
+		}
+	}
+}
+
+func TestCreateInactiveKey(t *testing.T) {
+	reg := newTestRegistry(t)
+	defer reg.Close()
+
+	key, token, err := reg.Create(Key{
+		IsActive:    false,
+		Environment: "env",
+		Source:      "src",
+	})
+	if err != nil {
+		t.Fatalf("could not create an inactive key: %v", err)
+	}
+	if key.GetID() == 0 {
+		t.Error("created key has no ID")
+	}
+
+	info, err := reg.Authorize(token)
+	if err != nil {
+		t.Fatalf("could not authorize the created key: %v", err)
+	}
+	if info.IsAuthorized {
+		t.Error("inactive key is authorized")
 	}
 }

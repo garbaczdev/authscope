@@ -187,6 +187,14 @@ func TestAuthorizeKey(t *testing.T) {
 			authInfo.Source,
 		)
 	}
+
+	authInfo, err = reg.Authorize("random-nonexisting-key")
+	if err != nil {
+		t.Fatalf("could not authorize a nonexisting key: %v", err)
+	}
+	if authInfo.IsAuthorized {
+		t.Errorf("nonexisting key correctly authorized")
+	}
 }
 
 func TestUpdateKey(t *testing.T) {

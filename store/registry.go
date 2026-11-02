@@ -15,10 +15,6 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-const (
-	TokenPrefixLen = 8
-)
-
 type AuthInfo struct {
 	// true if the token is authorized
 	IsAuthorized bool
@@ -119,6 +115,7 @@ func (r *Registry) Get(keyID uint) (key Key, ok bool, err error) {
 }
 
 func (r *Registry) Delete(keyID uint) error {
+	// Delete key from the database
 	var kr keyRow
 	if err := r.db.Delete(&kr, keyID).Error; err != nil {
 		return err
@@ -128,8 +125,7 @@ func (r *Registry) Delete(keyID uint) error {
 
 func (r *Registry) Create(key *Key) (token string, err error) {
 	// Generate a token
-	token = "sk-" + rand.Text()
-	tokenPrefix := token[:TokenPrefixLen]
+	token = "authscope-" + rand.Text()
 
 	// Get the hash of a token
 	tokenHash := hashToken(token)
@@ -140,11 +136,10 @@ func (r *Registry) Create(key *Key) (token string, err error) {
 		Environment: key.Environment,
 		Source:      key.Source,
 		Description: key.Description,
-		TokenPrefix: tokenPrefix,
 		TokenHash: tokenHash,
 	}
 	if err = r.db.Create(&kr).Error; err != nil {
-		return "", nil
+		return "", err
 	}
 
 	// Update the provided key

@@ -1,14 +1,14 @@
 package store
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"time"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -95,10 +95,10 @@ func (r *Registry) Authorize(token string) (authInfo AuthInfo, err error) {
 
 	// Key found for that token
 	return AuthInfo{
-		KeyID: kr.ID,
+		KeyID:        kr.ID,
 		IsAuthorized: true,
-		Environment: kr.Environment,
-		Source: kr.Source,
+		Environment:  kr.Environment,
+		Source:       kr.Source,
 	}, nil
 }
 
@@ -126,6 +126,11 @@ func (r *Registry) Delete(keyID uint) error {
 }
 
 func (r *Registry) Create(key *Key) (token string, err error) {
+	// Reject keys that cannot be persisted before generating or storing anything.
+	if err = key.validate(); err != nil {
+		return "", err
+	}
+
 	// Generate a token
 	token = "authscope-" + rand.Text()
 
@@ -138,7 +143,7 @@ func (r *Registry) Create(key *Key) (token string, err error) {
 		Environment: key.Environment,
 		Source:      key.Source,
 		Description: key.Description,
-		TokenHash: tokenHash,
+		TokenHash:   tokenHash,
 	}
 	if err = r.db.Create(&kr).Error; err != nil {
 		return "", err
@@ -154,6 +159,11 @@ func (r *Registry) Update(key *Key) error {
 	// Ensure that this key is in DB already
 	if key.GetID() == 0 {
 		return fmt.Errorf("can't update a key that is not yet in database")
+	}
+
+	// Reject invalid fields before touching the database.
+	if err := key.validate(); err != nil {
+		return err
 	}
 
 	// Lookup a key row by it's ID

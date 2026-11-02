@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"path/filepath"
 	"testing"
 )
@@ -219,9 +220,11 @@ func TestUpdateKey(t *testing.T) {
 		t.Fatalf("update for key without id is allowed!")
 	}
 
-	// Update the created key
+	// Update the created key. Environment and Source must stay non-empty, so
+	// Description is used to exercise zero-value persistence.
 	createdKey.Environment = "changedEnv"
-	createdKey.Source = ""
+	createdKey.Source = "changedSource"
+	createdKey.Description = ""
 	if err = reg.Update(&createdKey); err != nil {
 		t.Fatalf("could not update the key: %v", err)
 	}
@@ -246,6 +249,81 @@ func TestUpdateKey(t *testing.T) {
 			"authInfo source does not match. expected:%s, got:%s",
 			createdKey.Source,
 			authInfo.Source,
+		)
+	}
+
+	// An empty Description must be persisted, not skipped as a zero value.
+	fetchedKey, ok, err := reg.Get(createdKey.GetID())
+	if err != nil {
+		t.Fatalf("could not get the updated key: %v", err)
+	}
+	if !ok {
+		t.Fatal("could not get the updated key: not found")
+	}
+	if fetchedKey.Description != "" {
+		t.Errorf(
+			"key Description was not cleared, got=%q",
+			fetchedKey.Description,
+		)
+	}
+}
+
+func TestCreateRejectsInvalidKey(t *testing.T) {
+	reg := newTestRegistry(t)
+	defer reg.Close()
+
+	key := invalidateKey(Key{IsActive: true, Source: "src"})
+	if _, err := reg.Create(&key); !errors.Is(err, ErrInvalidKey) {
+		t.Fatalf("Create() error = %v, want ErrInvalidKey", err)
+	}
+
+	// A rejected key must not be persisted.
+	keys, err := reg.List(10, 0)
+	if err != nil {
+		t.Fatalf("could not list keys: %v", err)
+	}
+	if len(keys) != 0 {
+		t.Fatalf("there are %d keys after a rejected create", len(keys))
+	}
+}
+
+func TestUpdateRejectsInvalidKey(t *testing.T) {
+	reg := newTestRegistry(t)
+	defer reg.Close()
+
+	createdKey := Key{
+		IsActive:    true,
+		Environment: "env",
+		Source:      "src",
+		Description: "original",
+	}
+	if _, err := reg.Create(&createdKey); err != nil {
+		t.Fatalf("could not create a key: %v", err)
+	}
+
+	key := invalidateKey(createdKey)
+	if err := reg.Update(&key); !errors.Is(err, ErrInvalidKey) {
+		t.Fatalf("Update() error = %v, want ErrInvalidKey", err)
+	}
+
+	// The rejected update must not change the stored key.
+	fetched, ok, err := reg.Get(createdKey.GetID())
+	if err != nil {
+		t.Fatalf("could not get the created key: %v", err)
+	}
+	if !ok {
+		t.Fatal("could not get the created key: not found")
+	}
+	if fetched.IsActive != createdKey.IsActive ||
+		fetched.Environment != createdKey.Environment ||
+		fetched.Source != createdKey.Source ||
+		fetched.Description != createdKey.Description {
+		t.Errorf(
+			"stored key changed after a rejected update: got IsActive=%t Environment=%q Source=%q Description=%q",
+			fetched.IsActive,
+			fetched.Environment,
+			fetched.Source,
+			fetched.Description,
 		)
 	}
 }

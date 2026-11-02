@@ -68,7 +68,7 @@ func TestCreateDeleteKey(t *testing.T) {
 		t.Fatalf("there are %d keys after deleting created key", len(keys))
 	}
 
-	if _, err := reg.Get(createdKey.GetID()); err == nil {
+	if _, ok, _ := reg.Get(createdKey.GetID()); ok {
 		t.Fatalf("key returned by get after deletion")
 	}
 
@@ -81,7 +81,6 @@ func TestCreateDeleteKey(t *testing.T) {
 		t.Errorf("just deleted key is still authorized")
 	}
 
-	
 }
 
 func TestGetKey(t *testing.T) {
@@ -103,9 +102,12 @@ func TestGetKey(t *testing.T) {
 	}
 
 	// Get the created key
-	fetchedKey, err := reg.Get(createdKey.GetID())
+	fetchedKey, ok, err := reg.Get(createdKey.GetID())
 	if err != nil {
 		t.Fatalf("could not get the created key: %v", err)
+	}
+	if !ok {
+		t.Fatalf("could not get the created key: not found")
 	}
 
 	// Compare whether all fields are correct
@@ -211,7 +213,7 @@ func TestUpdateKey(t *testing.T) {
 
 	// Update the created key
 	createdKey.Environment = "changedEnv"
-	createdKey.Source = "changedSource"
+	createdKey.Source = ""
 	if err = reg.Update(&createdKey); err != nil {
 		t.Fatalf("could not update the key: %v", err)
 	}

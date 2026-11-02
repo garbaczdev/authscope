@@ -19,8 +19,8 @@ type keyRow struct {
 	Description string
 	// Start of the token so it can be recognized later
 	TokenPrefix string
-	// Hashed key with SHA256 algorithm
-	TokenSHA256 string
+	// Hashed key with a Hashing algorithm
+	TokenHash string
 }
 func (kr keyRow) ToKey() Key {
 	return Key{

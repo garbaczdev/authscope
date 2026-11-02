@@ -6,6 +6,9 @@ import (
 	"log"
 	"os"
 	"time"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -74,7 +77,31 @@ func (r *Registry) Close() (err error) {
 }
 
 func (r *Registry) Authorize(token string) (authInfo AuthInfo, err error) {
-	return AuthInfo{}, nil
+	tokenHash := hashToken(token)
+
+	// Find the key row in the database for that token hash.
+	// TODO: Make this optimal
+	var kr keyRow
+	if err := r.db.First(&kr, "token_hash = ?", tokenHash).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// No key found for that token
+			return AuthInfo{IsAuthorized: false}, nil
+		}
+		// Anything else is a genuine DB failure.
+		return AuthInfo{}, err
+	}
+
+	if !kr.IsActive {
+		// Key is not active
+		return AuthInfo{IsAuthorized: false}, nil
+	}
+
+	// Key found for that token
+	return AuthInfo{
+		IsAuthorized: true,
+		Environment: kr.Environment,
+		Source: kr.Source,
+	}, nil
 }
 
 func (r *Registry) Get(keyID uint) (key Key, ok bool, err error) {
@@ -101,11 +128,11 @@ func (r *Registry) Delete(keyID uint) error {
 
 func (r *Registry) Create(key *Key) (token string, err error) {
 	// Generate a token
-	token = "aaaaaaaaaaaaaaaaaaaaaaaa"
+	token = "sk-" + rand.Text()
 	tokenPrefix := token[:TokenPrefixLen]
 
 	// Get the hash of a token
-	tokenSHA256 := ""
+	tokenHash := hashToken(token)
 
 	// Create key in db
 	kr := keyRow{
@@ -114,7 +141,7 @@ func (r *Registry) Create(key *Key) (token string, err error) {
 		Source:      key.Source,
 		Description: key.Description,
 		TokenPrefix: tokenPrefix,
-		TokenSHA256: tokenSHA256,
+		TokenHash: tokenHash,
 	}
 	if err = r.db.Create(&kr).Error; err != nil {
 		return "", nil
@@ -171,4 +198,9 @@ func (r *Registry) List(count int, offset int) (keys []Key, err error) {
 		keys[i] = kr.ToKey()
 	}
 	return keys, nil
+}
+
+func hashToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:]) // 64 lowercase hex chars
 }

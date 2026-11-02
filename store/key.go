@@ -18,7 +18,7 @@ type keyRow struct {
 	// Informative description for the key
 	Description string
 	// Hashed key with a Hashing algorithm
-	TokenHash string
+	TokenHash string `gorm:"uniqueIndex;not null"`
 }
 func (kr keyRow) ToKey() Key {
 	return Key{

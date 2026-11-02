@@ -16,6 +16,7 @@ import (
 )
 
 type AuthInfo struct {
+	KeyID uint
 	// true if the token is authorized
 	IsAuthorized bool
 	// Name of the key's environment
@@ -76,7 +77,7 @@ func (r *Registry) Authorize(token string) (authInfo AuthInfo, err error) {
 	tokenHash := hashToken(token)
 
 	// Find the key row in the database for that token hash.
-	// TODO: Make this optimal
+	// TODO: Make this optimal by having an in-memory store.
 	var kr keyRow
 	if err := r.db.First(&kr, "token_hash = ?", tokenHash).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -94,6 +95,7 @@ func (r *Registry) Authorize(token string) (authInfo AuthInfo, err error) {
 
 	// Key found for that token
 	return AuthInfo{
+		KeyID: kr.ID,
 		IsAuthorized: true,
 		Environment: kr.Environment,
 		Source: kr.Source,

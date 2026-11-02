@@ -3,9 +3,13 @@ package store
 import (
 	"errors"
 	"fmt"
+	"log"
+	"os"
+	"time"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 const (
@@ -33,7 +37,19 @@ type Registry struct {
 
 func NewRegistry(DBPath string) (*Registry, error) {
 	// Open the db connection pool
-	db, err := gorm.Open(sqlite.Open(DBPath), &gorm.Config{})
+	// IgnoreRecordNotFoundError silences the "record not found" log from
+	// First() when a key is absent — Get intentionally handles that case as
+	// ok=false, so the log is just noise.
+	db, err := gorm.Open(sqlite.Open(DBPath), &gorm.Config{
+		Logger: logger.New(
+			log.New(os.Stdout, "\r\n", log.LstdFlags),
+			logger.Config{
+				SlowThreshold:             200 * time.Millisecond,
+				IgnoreRecordNotFoundError: true,
+				LogLevel:                  logger.Warn,
+			},
+		),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -146,5 +162,13 @@ func (r *Registry) Update(key *Key) error {
 }
 
 func (r *Registry) List(count int, offset int) (keys []Key, err error) {
-	return nil, nil
+	var rows []keyRow
+	if err = r.db.Order("created_at DESC").Offset(offset).Limit(count).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	keys = make([]Key, len(rows))
+	for i, kr := range rows {
+		keys[i] = kr.ToKey()
+	}
+	return keys, nil
 }

@@ -39,9 +39,7 @@ func TestCreateDeleteKey(t *testing.T) {
 		Source:      "src",
 		Description: "src",
 	}
-	createdKey := keyToCreate
-
-	token, err := reg.Create(&createdKey)
+	createdKey, token, err := reg.Create(keyToCreate)
 	if err != nil {
 		t.Fatalf("could not create a key: %v", err)
 	}
@@ -95,9 +93,7 @@ func TestGetKey(t *testing.T) {
 		Source:      "src",
 		Description: "src",
 	}
-	createdKey := keyToCreate
-
-	_, err := reg.Create(&createdKey)
+	createdKey, _, err := reg.Create(keyToCreate)
 	if err != nil {
 		t.Fatalf("could not create a key: %v", err)
 	}
@@ -160,8 +156,7 @@ func TestAuthorizeKey(t *testing.T) {
 		Source:      "src",
 		Description: "src",
 	}
-	createdKey := keyToCreate
-	token, err := reg.Create(&createdKey)
+	_, token, err := reg.Create(keyToCreate)
 	if err != nil {
 		t.Fatalf("could not create a key: %v", err)
 	}
@@ -209,14 +204,13 @@ func TestUpdateKey(t *testing.T) {
 		Source:      "src",
 		Description: "src",
 	}
-	createdKey := keyToCreate
-	token, err := reg.Create(&createdKey)
+	createdKey, token, err := reg.Create(keyToCreate)
 	if err != nil {
 		t.Fatalf("could not create a key: %v", err)
 	}
 
 	// Ensure key without ID cannot be updated!
-	if err = reg.Update(&keyToCreate); err == nil {
+	if _, err = reg.Update(keyToCreate); err == nil {
 		t.Fatalf("update for key without id is allowed!")
 	}
 
@@ -225,7 +219,8 @@ func TestUpdateKey(t *testing.T) {
 	createdKey.Environment = "changedEnv"
 	createdKey.Source = "changedSource"
 	createdKey.Description = ""
-	if err = reg.Update(&createdKey); err != nil {
+	createdKey, err = reg.Update(createdKey)
+	if err != nil {
 		t.Fatalf("could not update the key: %v", err)
 	}
 
@@ -273,7 +268,7 @@ func TestCreateRejectsInvalidKey(t *testing.T) {
 	defer reg.Close()
 
 	key := invalidateKey(Key{IsActive: true, Source: "src"})
-	if _, err := reg.Create(&key); !errors.Is(err, ErrInvalidKey) {
+	if _, _, err := reg.Create(key); !errors.Is(err, ErrInvalidKey) {
 		t.Fatalf("Create() error = %v, want ErrInvalidKey", err)
 	}
 
@@ -297,12 +292,13 @@ func TestUpdateRejectsInvalidKey(t *testing.T) {
 		Source:      "src",
 		Description: "original",
 	}
-	if _, err := reg.Create(&createdKey); err != nil {
+	createdKey, _, err := reg.Create(createdKey)
+	if err != nil {
 		t.Fatalf("could not create a key: %v", err)
 	}
 
 	key := invalidateKey(createdKey)
-	if err := reg.Update(&key); !errors.Is(err, ErrInvalidKey) {
+	if _, err := reg.Update(key); !errors.Is(err, ErrInvalidKey) {
 		t.Fatalf("Update() error = %v, want ErrInvalidKey", err)
 	}
 

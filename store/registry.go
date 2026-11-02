@@ -73,7 +73,7 @@ func (r *Registry) Close() (err error) {
 	return sqlDB.Close()
 }
 
-func (r *Registry) Authorize(token string) (authInfo AuthInfo, err error) {
+func (r *Registry) Authorize(token string) (AuthInfo, error) {
 	tokenHash := hashToken(token)
 
 	// Find the key row in the database for that token hash.
@@ -102,10 +102,10 @@ func (r *Registry) Authorize(token string) (authInfo AuthInfo, err error) {
 	}, nil
 }
 
-func (r *Registry) Get(keyID uint) (key Key, ok bool, err error) {
+func (r *Registry) Get(keyID uint) (Key, bool, error) {
 	// Lookup a key row by it's ID
 	var kr keyRow
-	if err = r.db.First(&kr, keyID).Error; err != nil {
+	if err := r.db.First(&kr, keyID).Error; err != nil {
 		// A missing key is not a real error — just ok=false like a map lookup.
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return Key{}, false, nil
@@ -125,14 +125,14 @@ func (r *Registry) Delete(keyID uint) error {
 	return nil
 }
 
-func (r *Registry) Create(key *Key) (token string, err error) {
+func (r *Registry) Create(key Key) (Key, string, error) {
 	// Reject keys that cannot be persisted before generating or storing anything.
-	if err = key.validate(); err != nil {
-		return "", err
+	if err := key.validate(); err != nil {
+		return Key{}, "", err
 	}
 
 	// Generate a token
-	token = "authscope-" + rand.Text()
+	token := "authscope-" + rand.Text()
 
 	// Get the hash of a token
 	tokenHash := hashToken(token)
@@ -145,31 +145,28 @@ func (r *Registry) Create(key *Key) (token string, err error) {
 		Description: key.Description,
 		TokenHash:   tokenHash,
 	}
-	if err = r.db.Create(&kr).Error; err != nil {
-		return "", err
+	if err := r.db.Create(&kr).Error; err != nil {
+		return Key{}, "", err
 	}
 
-	// Update the provided key
-	*key = kr.ToKey()
-
-	return token, nil
+	return kr.ToKey(), token, nil
 }
 
-func (r *Registry) Update(key *Key) error {
+func (r *Registry) Update(key Key) (Key, error) {
 	// Ensure that this key is in DB already
 	if key.GetID() == 0 {
-		return fmt.Errorf("can't update a key that is not yet in database")
+		return Key{}, fmt.Errorf("can't update a key that is not yet in database")
 	}
 
 	// Reject invalid fields before touching the database.
 	if err := key.validate(); err != nil {
-		return err
+		return Key{}, err
 	}
 
 	// Lookup a key row by it's ID
 	var kr keyRow
 	if err := r.db.First(&kr, key.GetID()).Error; err != nil {
-		return err
+		return Key{}, err
 	}
 
 	// Update the key row values
@@ -187,20 +184,20 @@ func (r *Registry) Update(key *Key) error {
 
 	// Make sure the save actually went through.
 	if res.Error != nil {
-		return res.Error
+		return Key{}, res.Error
 	}
 	if res.RowsAffected == 0 {
-		return fmt.Errorf("key %d was not updated", key.GetID())
+		return Key{}, fmt.Errorf("key %d was not updated", key.GetID())
 	}
-	return nil
+	return kr.ToKey(), nil
 }
 
-func (r *Registry) List(count int, offset int) (keys []Key, err error) {
+func (r *Registry) List(count int, offset int) ([]Key, error) {
 	var rows []keyRow
-	if err = r.db.Order("created_at DESC").Offset(offset).Limit(count).Find(&rows).Error; err != nil {
+	if err := r.db.Order("created_at DESC").Offset(offset).Limit(count).Find(&rows).Error; err != nil {
 		return nil, err
 	}
-	keys = make([]Key, len(rows))
+	keys := make([]Key, len(rows))
 	for i, kr := range rows {
 		keys[i] = kr.ToKey()
 	}

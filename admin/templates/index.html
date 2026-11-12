@@ -1,0 +1,45 @@
+{{define "index.html"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>authscope — keys</title>
+  <style>
+    body  { font-family: system-ui, sans-serif; margin: 2rem; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: .4rem .6rem; text-align: left; }
+    th    { background: #f4f4f4; }
+    .inactive { color: #999; }
+  </style>
+</head>
+<body>
+  <h1>Keys</h1>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Environment</th>
+        <th>Source</th>
+        <th>Description</th>
+        <th>Active</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Keys}}
+      <tr{{if not .IsActive}} class="inactive"{{end}}>
+        <td>{{.GetID}}</td>
+        <td>{{.Environment}}</td>
+        <td>{{.Source}}</td>
+        <td>{{.Description}}</td>
+        <td>{{if .IsActive}}yes{{else}}no{{end}}</td>
+      </tr>
+      {{else}}
+      <tr><td colspan="5">No keys yet.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</body>
+</html>
+{{end}}

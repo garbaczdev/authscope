@@ -1,0 +1,40 @@
+{{define "keyform"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}}</title>
+</head>
+<body>
+  <h1>{{.FormHeader}}</h1>
+
+  <form action="" method="post" class="">
+    <div class="">
+      <label for="name">Is Active: </label>
+      <input type="checkbox" name="isActive" required 
+        {{if .Key.IsActive}}checked{{end}}
+      />
+    </div>
+    <div class="">
+      <label for="name">Environment: </label>
+      <input type="text" name="environment" value="{{.Key.Environment}}" required />
+    </div>
+    <div class="">
+      <label for="name">Source: </label>
+      <input type="text" name="source" value="{{.Key.Source}}" required />
+    </div>
+    <div class="">
+      <label for="name">Description: </label>
+      <input type="text" name="description" value="{{.Key.Description}}" />
+    </div>
+    {{range .Errors}}
+      <span>{{.}}</span>
+    {{end}}
+    <div class="">
+      <input type="submit" value="{{.SubmitButtonText}}" />
+    </div>
+  </form>
+</body>
+</html>
+{{end}}

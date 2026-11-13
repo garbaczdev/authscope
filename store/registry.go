@@ -165,7 +165,7 @@ func (r *Registry) Create(key Key) (Key, string, error) {
 	}
 
 	// Reject keys that cannot be persisted before generating or storing anything.
-	if err := key.validate(); err != nil {
+	if err := key.Validate(); err != nil {
 		return Key{}, "", err
 	}
 
@@ -197,7 +197,7 @@ func (r *Registry) Update(key Key) (Key, error) {
 	}
 
 	// Reject invalid fields before touching the database.
-	if err := key.validate(); err != nil {
+	if err := key.Validate(); err != nil {
 		return Key{}, err
 	}
 

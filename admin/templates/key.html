@@ -1,0 +1,27 @@
+{{define "key"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>authscope - key {{.Key.GetID}}</title>
+</head>
+<body>
+  {{if .Token}}
+    <p>Store this token now. It cannot be shown again.</p>
+    <div>
+      <input id="token" value="{{.Token}}" readonly onclick="this.select()">
+      <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('token').value)">Copy</button>
+    </div>
+  {{end}}
+
+  <table>
+    <tr><th>ID</th><td>{{.Key.GetID}}</td></tr>
+    <tr><th>Active</th><td>{{if .Key.IsActive}}yes{{else}}no{{end}}</td></tr>
+    <tr><th>Environment</th><td>{{.Key.Environment}}</td></tr>
+    <tr><th>Source</th><td>{{.Key.Source}}</td></tr>
+    <tr><th>Description</th><td>{{.Key.Description}}</td></tr>
+  </table>
+</body>
+</html>
+{{end}}

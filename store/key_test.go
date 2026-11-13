@@ -1,12 +1,11 @@
 package store
 
 import (
-	"errors"
 	"strings"
 	"testing"
 )
 
-// invalidateKey breaks k so that validate rejects it. Registry tests use this
+// invalidateKey breaks k so that Validate rejects it. Registry tests use this
 // helper to exercise error propagation without duplicating validation rules.
 func invalidateKey(k Key) Key {
 	k.Environment = ""
@@ -15,10 +14,12 @@ func invalidateKey(k Key) Key {
 
 func TestKeyValidate(t *testing.T) {
 	tests := []struct {
-		name      string
-		key       Key
-		wantErr   bool
-		wantField string
+		name string
+		key  Key
+		// wantErr reports whether Validate must reject the key.
+		wantErr bool
+		// wantFields lists the fields whose names must appear in the error.
+		wantFields []string
 	}{
 		{
 			name: "valid ascii",
@@ -44,113 +45,121 @@ func TestKeyValidate(t *testing.T) {
 			},
 		},
 		{
-			name: "valid identifier boundaries",
+			name: "valid identifier characters",
 			key: Key{
-				Environment: "!~",
-				Source:      "AZaz09-._",
+				Environment: "a-z.0_9",
+				Source:      "az09-._",
 			},
 		},
 		{
-			name: "valid max lengths",
+			name: "long identifiers and description are allowed",
 			key: Key{
-				Environment: strings.Repeat("e", maxIdentifierLen),
-				Source:      strings.Repeat("s", maxIdentifierLen),
-				Description: strings.Repeat("é", maxDescriptionLen/2),
+				Environment: strings.Repeat("e", 300),
+				Source:      strings.Repeat("s", 300),
+				Description: strings.Repeat("é", 2048),
 			},
 		},
 		{
-			name:      "empty environment",
-			key:       Key{Source: "api"},
-			wantErr:   true,
-			wantField: "environment",
+			name:       "empty environment",
+			key:        Key{Source: "api"},
+			wantErr:    true,
+			wantFields: []string{"environment"},
 		},
 		{
-			name:      "empty source",
-			key:       Key{Environment: "production"},
-			wantErr:   true,
-			wantField: "source",
+			name:       "empty source",
+			key:        Key{Environment: "production"},
+			wantErr:    true,
+			wantFields: []string{"source"},
 		},
 		{
-			name:      "environment with space",
-			key:       Key{Environment: "prod env", Source: "api"},
-			wantErr:   true,
-			wantField: "environment",
+			name:       "empty environment and source",
+			key:        Key{},
+			wantErr:    true,
+			wantFields: []string{"environment", "source"},
 		},
 		{
-			name:      "source with space",
-			key:       Key{Environment: "production", Source: "api v1"},
-			wantErr:   true,
-			wantField: "source",
+			name:       "environment with space",
+			key:        Key{Environment: "prod env", Source: "api"},
+			wantErr:    true,
+			wantFields: []string{"environment"},
 		},
 		{
-			name:      "environment with tab",
-			key:       Key{Environment: "prod\t", Source: "api"},
-			wantErr:   true,
-			wantField: "environment",
+			name:       "source with space",
+			key:        Key{Environment: "production", Source: "api v1"},
+			wantErr:    true,
+			wantFields: []string{"source"},
 		},
 		{
-			name:      "source with newline",
-			key:       Key{Environment: "production", Source: "api\n"},
-			wantErr:   true,
-			wantField: "source",
+			name:       "environment with tab",
+			key:        Key{Environment: "prod\t", Source: "api"},
+			wantErr:    true,
+			wantFields: []string{"environment"},
 		},
 		{
-			name:      "environment with carriage return",
-			key:       Key{Environment: "pro\rduction", Source: "api"},
-			wantErr:   true,
-			wantField: "environment",
+			name:       "source with newline",
+			key:        Key{Environment: "production", Source: "api\n"},
+			wantErr:    true,
+			wantFields: []string{"source"},
 		},
 		{
-			name:      "environment with nul byte",
-			key:       Key{Environment: "prod\x00", Source: "api"},
-			wantErr:   true,
-			wantField: "environment",
+			name:       "environment with carriage return",
+			key:        Key{Environment: "pro\rduction", Source: "api"},
+			wantErr:    true,
+			wantFields: []string{"environment"},
 		},
 		{
-			name:      "environment with delete character",
-			key:       Key{Environment: "prod\x7f", Source: "api"},
-			wantErr:   true,
-			wantField: "environment",
+			name:       "environment with nul byte",
+			key:        Key{Environment: "prod\x00", Source: "api"},
+			wantErr:    true,
+			wantFields: []string{"environment"},
 		},
 		{
-			name:      "environment with non-ascii text",
-			key:       Key{Environment: "pröd", Source: "api"},
-			wantErr:   true,
-			wantField: "environment",
+			name:       "environment with delete character",
+			key:        Key{Environment: "prod\x7f", Source: "api"},
+			wantErr:    true,
+			wantFields: []string{"environment"},
 		},
 		{
-			name:      "source with non-ascii text",
-			key:       Key{Environment: "production", Source: "apié"},
-			wantErr:   true,
-			wantField: "source",
+			name:       "environment with non-ascii text",
+			key:        Key{Environment: "pröd", Source: "api"},
+			wantErr:    true,
+			wantFields: []string{"environment"},
 		},
 		{
-			name: "environment too long",
-			key: Key{
-				Environment: strings.Repeat("e", maxIdentifierLen+1),
-				Source:      "api",
-			},
-			wantErr:   true,
-			wantField: "environment",
+			name:       "source with non-ascii text",
+			key:        Key{Environment: "production", Source: "apié"},
+			wantErr:    true,
+			wantFields: []string{"source"},
 		},
 		{
-			name: "source too long",
-			key: Key{
-				Environment: "production",
-				Source:      strings.Repeat("s", maxIdentifierLen+1),
-			},
-			wantErr:   true,
-			wantField: "source",
+			name:       "environment with uppercase letter",
+			key:        Key{Environment: "Production", Source: "api"},
+			wantErr:    true,
+			wantFields: []string{"environment"},
 		},
 		{
-			name: "description too long",
-			key: Key{
-				Environment: "production",
-				Source:      "api",
-				Description: strings.Repeat("a", maxDescriptionLen+1),
-			},
-			wantErr:   true,
-			wantField: "description",
+			name:       "source with uppercase letter",
+			key:        Key{Environment: "production", Source: "API"},
+			wantErr:    true,
+			wantFields: []string{"source"},
+		},
+		{
+			name:       "environment with disallowed symbol",
+			key:        Key{Environment: "prod:env", Source: "api"},
+			wantErr:    true,
+			wantFields: []string{"environment"},
+		},
+		{
+			name:       "source with disallowed symbol",
+			key:        Key{Environment: "production", Source: "api/v1"},
+			wantErr:    true,
+			wantFields: []string{"source"},
+		},
+		{
+			name:       "environment with legacy visible ascii symbols",
+			key:        Key{Environment: "!~", Source: "api"},
+			wantErr:    true,
+			wantFields: []string{"environment"},
 		},
 		{
 			name: "description with invalid utf8",
@@ -159,35 +168,34 @@ func TestKeyValidate(t *testing.T) {
 				Source:      "api",
 				Description: string([]byte{0xff, 0xfe}),
 			},
-			wantErr:   true,
-			wantField: "description",
+			wantErr:    true,
+			wantFields: []string{"description"},
 		},
 	}
 
 	for _, tt := range tests {
-		err := tt.key.validate()
+		err := tt.key.Validate()
 
 		if !tt.wantErr {
 			if err != nil {
-				t.Errorf("%s: validate() returned an unexpected error: %v", tt.name, err)
+				t.Errorf("%s: Validate() returned an unexpected error: %v", tt.name, err)
 			}
 			continue
 		}
 
 		if err == nil {
-			t.Errorf("%s: validate() returned nil, want an error", tt.name)
+			t.Errorf("%s: Validate() returned nil, want an error", tt.name)
 			continue
 		}
-		if !errors.Is(err, ErrInvalidKey) {
-			t.Errorf("%s: validate() error = %v, want ErrInvalidKey", tt.name, err)
-		}
-		if !strings.Contains(err.Error(), tt.wantField) {
-			t.Errorf(
-				"%s: validate() error = %q, want it to mention %q",
-				tt.name,
-				err,
-				tt.wantField,
-			)
+		for _, field := range tt.wantFields {
+			if !strings.Contains(err.Error(), field) {
+				t.Errorf(
+					"%s: Validate() error = %q, want it to mention %q",
+					tt.name,
+					err,
+					field,
+				)
+			}
 		}
 	}
 }

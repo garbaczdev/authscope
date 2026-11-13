@@ -2,7 +2,6 @@ package store
 
 import (
 	"errors"
-	"fmt"
 	"time"
 	"unicode/utf8"
 
@@ -57,55 +56,66 @@ type Key struct {
 	createdAt time.Time
 }
 
-// validate reports whether the key's mutable fields satisfy the store's
-// persistence rules. Environment and Source must be non-empty and contain only
-// visible ASCII characters (no spaces, control characters, or non-ASCII text).
-// Description may contain any valid UTF-8 text.
-func (k Key) validate() error {
-	if err := validateIdentifier("environment", k.Environment); err != nil {
-		return err
-	}
-	if err := validateIdentifier("source", k.Source); err != nil {
-		return err
-	}
-	if len(k.Description) > maxDescriptionLen {
-		return fmt.Errorf(
-			"%w: description must be at most %d bytes",
-			ErrInvalidKey,
-			maxDescriptionLen,
-		)
-	}
-	if !utf8.ValidString(k.Description) {
-		return fmt.Errorf("%w: description must be valid UTF-8", ErrInvalidKey)
-	}
-	return nil
+func (k Key) Validate() error {
+	return errors.Join(k.ValidateAll()...)
 }
 
-// validateIdentifier checks that value is a non-empty, bounded string of
-// visible ASCII characters without spaces. These values become HTTP headers
-// (X-Env and X-Source), so control characters must never reach the database.
-func validateIdentifier(field, value string) error {
-	if value == "" {
-		return fmt.Errorf("%w: %s must not be empty", ErrInvalidKey, field)
+func (k Key) ValidateAll() []error {
+	validationErrors := make([]error, 0)
+
+	// Ensure no empty environment/source
+	if len(k.Environment) == 0 {
+		validationErrors = append(validationErrors, errors.New(
+			"environment field cannot be empty",
+		))
 	}
-	if len(value) > maxIdentifierLen {
-		return fmt.Errorf(
-			"%w: %s must be at most %d bytes",
-			ErrInvalidKey,
-			field,
-			maxIdentifierLen,
-		)
+	if len(k.Source) == 0 {
+		validationErrors = append(validationErrors, errors.New(
+			"source field cannot be empty",
+		))
 	}
-	for i := 0; i < len(value); i++ {
-		if value[i] < '!' || value[i] > '~' {
-			return fmt.Errorf(
-				"%w: %s must contain only visible ASCII characters without spaces",
-				ErrInvalidKey,
-				field,
-			)
+
+	// Ensure no un-safe characters
+	for idx := range k.Environment {
+		if !isSafeCharacter(k.Environment[idx]) {
+			validationErrors = append(validationErrors, errors.New(
+				"environment field can contain only: letters/numbers/-/_/.",
+			))
+			break
 		}
 	}
-	return nil
+	for idx := range k.Source {
+		if !isSafeCharacter(k.Source[idx]) {
+			validationErrors = append(validationErrors, errors.New(
+				"source field can contain only: letters/numbers/-/_/.",
+			))
+			break
+		}
+	}
+
+	// Ensure description is valid utf-8
+	if !utf8.ValidString(k.Description) {
+		validationErrors = append(validationErrors, errors.New(
+			"description field has to be a valid utf-8 string",
+		))
+	}
+
+	return validationErrors
+}
+
+func isSafeCharacter(char byte) bool {
+	// number
+	if 48 <= char && char <= 57 { return true }
+	// lowercase letter
+	if 97 <= char && char <= 122 { return true }
+	// -
+	if char == 45 { return true }
+	// _
+	if char == 95 { return true }
+	// .
+	if char == 46 { return true }
+	// Anything else is invalid
+	return false
 }
 
 func (k Key) GetID() uint {

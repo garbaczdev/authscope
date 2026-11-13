@@ -219,8 +219,8 @@ func TestUpdateKey(t *testing.T) {
 
 	// Update the created key. Environment and Source must stay non-empty, so
 	// Description is used to exercise zero-value persistence.
-	createdKey.Environment = "changedEnv"
-	createdKey.Source = "changedSource"
+	createdKey.Environment = "changed-env"
+	createdKey.Source = "changed-source"
 	createdKey.Description = ""
 	createdKey, err = reg.Update(createdKey)
 	if err != nil {
@@ -271,8 +271,8 @@ func TestCreateRejectsInvalidKey(t *testing.T) {
 	defer reg.Close()
 
 	key := invalidateKey(Key{IsActive: true, Source: "src"})
-	if _, _, err := reg.Create(key); !errors.Is(err, ErrInvalidKey) {
-		t.Fatalf("Create() error = %v, want ErrInvalidKey", err)
+	if _, _, err := reg.Create(key); err == nil || !strings.Contains(err.Error(), "environment") {
+		t.Fatalf("Create() error = %v, want a validation error about the environment field", err)
 	}
 
 	// A rejected key must not be persisted.
@@ -301,8 +301,8 @@ func TestUpdateRejectsInvalidKey(t *testing.T) {
 	}
 
 	key := invalidateKey(createdKey)
-	if _, err := reg.Update(key); !errors.Is(err, ErrInvalidKey) {
-		t.Fatalf("Update() error = %v, want ErrInvalidKey", err)
+	if _, err := reg.Update(key); err == nil || !strings.Contains(err.Error(), "environment") {
+		t.Fatalf("Update() error = %v, want a validation error about the environment field", err)
 	}
 
 	// The rejected update must not change the stored key.

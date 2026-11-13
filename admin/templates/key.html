@@ -4,24 +4,110 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>authscope - key {{.Key.GetID}}</title>
+  <title>authscope — key {{.Key.GetID}}</title>
+  {{template "styles" .}}
 </head>
 <body>
-  {{if .Token}}
-    <p>Store this token now. It cannot be shown again.</p>
-    <div>
-      <input id="token" value="{{.Token}}" readonly onclick="this.select()">
-      <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('token').value)">Copy</button>
-    </div>
-  {{end}}
+  {{template "topbar" .}}
+  <div class="container">
+    <header>
+      <div class="header-left">
+        <a class="btn" href="/">&larr; Keys</a>
+        <h1>Key {{.Key.GetID}}</h1>
+      </div>
+      <div class="actions">
+        <a class="btn" href="/key/{{.Key.GetID}}/edit">Edit</a>
+        <form method="post" action="/key/{{.Key.GetID}}/delete"
+              onsubmit="return confirm('Delete this key?')">
+          <button class="btn btn-danger" type="submit">Delete</button>
+        </form>
+      </div>
+    </header>
 
-  <table>
-    <tr><th>ID</th><td>{{.Key.GetID}}</td></tr>
-    <tr><th>Active</th><td>{{if .Key.IsActive}}yes{{else}}no{{end}}</td></tr>
-    <tr><th>Environment</th><td>{{.Key.Environment}}</td></tr>
-    <tr><th>Source</th><td>{{.Key.Source}}</td></tr>
-    <tr><th>Description</th><td>{{.Key.Description}}</td></tr>
-  </table>
+    {{if .Token}}
+    <div class="token-banner">
+      <p class="token-warn">Store this token now. It cannot be shown again.</p>
+      <div class="token-row">
+        <input id="token" class="token-input" value="*******************" data-token="{{.Token}}" readonly>
+        <button type="button" class="btn btn-primary" onclick="copyToken()">Copy</button>
+      </div>
+      <div id="copy-status" class="copy-status" role="status" aria-live="polite"></div>
+    </div>
+    <script>
+      function copyToken() {
+        var input = document.getElementById('token');
+        var status = document.getElementById('copy-status');
+        var token = input.getAttribute('data-token');
+
+        function report(message) {
+          status.textContent = message;
+          clearTimeout(window.copyStatusTimer);
+          window.copyStatusTimer = setTimeout(function () {
+            status.textContent = '';
+          }, 2000);
+        }
+
+        function fallback() {
+          var area = document.createElement('textarea');
+          area.value = token;
+          area.setAttribute('readonly', '');
+          area.style.position = 'fixed';
+          area.style.opacity = '0';
+          document.body.appendChild(area);
+          area.select();
+          var ok = false;
+          try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+          document.body.removeChild(area);
+          return ok;
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(token).then(
+            function () { report('Copied to clipboard'); },
+            function () { report(fallback() ? 'Copied to clipboard' : 'Copy failed'); }
+          );
+        } else {
+          report(fallback() ? 'Copied to clipboard' : 'Copy failed');
+        }
+      }
+    </script>
+    {{end}}
+
+    <div class="card">
+      <div class="card-head">
+        <div class="key-title">
+          <span class="key-env">{{.Key.Environment}}</span>
+          <span class="key-source">· {{.Key.Source}}</span>
+        </div>
+        <span class="badge {{if .Key.IsActive}}active{{else}}inactive{{end}}">
+          {{if .Key.IsActive}}Active{{else}}Inactive{{end}}
+        </span>
+      </div>
+
+      <dl class="details">
+        <div class="detail-row">
+          <dt>ID</dt>
+          <dd>{{.Key.GetID}}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>Created</dt>
+          <dd>{{.Key.GetCreatedAt.Format "2006-01-02 15:04"}}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>Environment</dt>
+          <dd>{{.Key.Environment}}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>Source</dt>
+          <dd>{{.Key.Source}}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>Description</dt>
+          <dd>{{if .Key.Description}}{{.Key.Description}}{{else}}<span class="muted-empty">No description</span>{{end}}</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
 </body>
 </html>
 {{end}}

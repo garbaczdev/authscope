@@ -1,0 +1,251 @@
+{{define "styles"}}
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      margin: 0;
+      background: #f6f7f9;
+      color: #1f2328;
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 1.5rem 1.25rem 2rem;
+    }
+    .topbar { background: #1f2328; color: #fff; }
+    .topbar-inner {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: .75rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .brand {
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: .02em;
+      text-decoration: none;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .header-left { display: flex; align-items: center; gap: .85rem; min-width: 0; }
+    h1 { font-size: 1.5rem; margin: 0; }
+
+    .btn {
+      display: inline-block;
+      font: inherit;
+      font-size: .875rem;
+      padding: .4rem .85rem;
+      border: 1px solid #d0d5db;
+      border-radius: 6px;
+      background: #fff;
+      color: #1f2328;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+    }
+    .btn:hover { background: #f0f1f3; border-color: #b9c0c8; }
+    .btn-primary {
+      background: #1f6feb;
+      border-color: #1f6feb;
+      color: #fff;
+    }
+    .btn-primary:hover { background: #1a5fd0; border-color: #1a5fd0; }
+    .btn-danger { color: #c0362c; }
+    .btn-danger:hover { background: #fdecea; border-color: #e6b3ae; }
+
+    .actions { display: flex; align-items: center; gap: .5rem; }
+    .actions form { margin: 0; }
+
+    .badge {
+      font-size: .75rem;
+      font-weight: 600;
+      padding: .15rem .55rem;
+      border-radius: 999px;
+      border: 1px solid transparent;
+    }
+    .badge.active { color: #1a7f37; border-color: #1a7f37; background: #eaf7ee; }
+    .badge.inactive { color: #c0362c; border-color: #c0362c; background: #fdecea; }
+
+    .key-title {
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .key-env { color: #1f2328; }
+    .key-source { color: #57606a; font-weight: 500; }
+    .muted-empty { color: #999; font-style: italic; }
+
+    /* Index: key list */
+    .key-list { display: flex; flex-direction: column; gap: .75rem; }
+    .key {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      background: #fff;
+      border: 1px solid #e3e6ea;
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+    .key-main { min-width: 0; }
+    .key .key-title { font-size: 1rem; margin-bottom: .25rem; }
+    .key-desc {
+      max-width: 100ch;
+      color: #57606a;
+      font-size: .875rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .key-id {
+      margin-top: .35rem;
+      color: #999;
+      font-size: .75rem;
+    }
+    .key-side {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: .6rem;
+      flex-shrink: 0;
+    }
+    .empty {
+      background: #fff;
+      border: 1px dashed #d0d5db;
+      border-radius: 10px;
+      padding: 2rem;
+      text-align: center;
+      color: #57606a;
+    }
+
+    /* Key details */
+    .card {
+      background: #fff;
+      border: 1px solid #e3e6ea;
+      border-radius: 10px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+      padding: 1.25rem 1.35rem;
+    }
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding-bottom: 1rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #eef0f2;
+    }
+    .card-head .key-title { font-size: 1.1rem; }
+    .details { margin: 0; }
+    .detail-row {
+      display: flex;
+      gap: 1rem;
+      padding: .55rem 0;
+      border-bottom: 1px solid #f2f3f5;
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-row dt {
+      width: 9rem;
+      flex-shrink: 0;
+      color: #57606a;
+      font-size: .875rem;
+    }
+    .detail-row dd {
+      margin: 0;
+      font-size: .9rem;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .token-banner {
+      background: #fff8e6;
+      border: 1px solid #f0d98a;
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      margin-bottom: 1.25rem;
+    }
+    .token-warn {
+      margin: 0 0 .7rem;
+      font-size: .875rem;
+      font-weight: 600;
+      color: #8a6100;
+    }
+    .token-row { display: flex; gap: .5rem; }
+    .copy-status {
+      min-height: 1.15rem;
+      margin-top: .5rem;
+      font-size: .8rem;
+      font-weight: 600;
+      color: #1a7f37;
+    }
+    .token-input {
+      flex: 1;
+      min-width: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: .85rem;
+      padding: .5rem .65rem;
+      border: 1px solid #d0d5db;
+      border-radius: 6px;
+      background: #fff;
+    }
+
+    /* Form */
+    .form-field { margin-bottom: 1rem; }
+    .form-field label {
+      display: block;
+      font-size: .875rem;
+      color: #57606a;
+      margin-bottom: .35rem;
+    }
+    .form-field input[type="text"] {
+      width: 100%;
+      font: inherit;
+      font-size: .9rem;
+      padding: .5rem .65rem;
+      border: 1px solid #d0d5db;
+      border-radius: 6px;
+      background: #fff;
+    }
+    .form-field input[type="text"]:focus {
+      outline: none;
+      border-color: #1f6feb;
+      box-shadow: 0 0 0 3px rgba(31,111,235,.15);
+    }
+    .checkbox-field {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      margin-bottom: 1rem;
+    }
+    .checkbox-field label {
+      font-size: .9rem;
+      color: #1f2328;
+    }
+    .form-actions {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      margin-top: 1.25rem;
+    }
+    .errors {
+      background: #fdecea;
+      border: 1px solid #e6b3ae;
+      border-radius: 8px;
+      padding: .75rem 1rem;
+      margin-bottom: 1rem;
+      color: #c0362c;
+      font-size: .875rem;
+    }
+    .errors ul { margin: 0; padding-left: 1.1rem; }
+  </style>
+{{end}}

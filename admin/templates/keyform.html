@@ -5,36 +5,58 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}}</title>
+  {{template "styles" .}}
 </head>
 <body>
-  <h1>{{.FormHeader}}</h1>
+  {{template "topbar" .}}
+  <div class="container">
+    <header>
+      <div class="header-left">
+        <a class="btn" href="/">&larr; Keys</a>
+        <h1>{{.FormHeader}}</h1>
+      </div>
+    </header>
 
-  <form action="" method="post" class="">
-    <div class="">
-      <label for="name">Is Active: </label>
-      <input type="checkbox" name="isActive" required 
-        {{if .Key.IsActive}}checked{{end}}
-      />
+    <div class="card">
+      <form action="" method="post">
+        {{if .Errors}}
+        <div class="errors">
+          <ul>
+            {{range .Errors}}
+            <li>{{.}}</li>
+            {{end}}
+          </ul>
+        </div>
+        {{end}}
+
+        <div class="checkbox-field">
+          <input type="checkbox" id="isActive" name="isActive"
+            {{if .Key.IsActive}}checked{{end}} />
+          <label for="isActive">Is Active</label>
+        </div>
+
+        <div class="form-field">
+          <label for="environment">Environment</label>
+          <input type="text" id="environment" name="environment" value="{{.Key.Environment}}" required />
+        </div>
+
+        <div class="form-field">
+          <label for="source">Source</label>
+          <input type="text" id="source" name="source" value="{{.Key.Source}}" required />
+        </div>
+
+        <div class="form-field">
+          <label for="description">Description</label>
+          <input type="text" id="description" name="description" value="{{.Key.Description}}" />
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">{{.SubmitButtonText}}</button>
+          <a class="btn" href="/">Cancel</a>
+        </div>
+      </form>
     </div>
-    <div class="">
-      <label for="name">Environment: </label>
-      <input type="text" name="environment" value="{{.Key.Environment}}" required />
-    </div>
-    <div class="">
-      <label for="name">Source: </label>
-      <input type="text" name="source" value="{{.Key.Source}}" required />
-    </div>
-    <div class="">
-      <label for="name">Description: </label>
-      <input type="text" name="description" value="{{.Key.Description}}" />
-    </div>
-    {{range .Errors}}
-      <span>{{.}}</span>
-    {{end}}
-    <div class="">
-      <input type="submit" value="{{.SubmitButtonText}}" />
-    </div>
-  </form>
+  </div>
 </body>
 </html>
 {{end}}

@@ -4,122 +4,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>authscope — keys</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      margin: 0;
-      background: #f6f7f9;
-      color: #1f2328;
-      line-height: 1.5;
-    }
-    .container {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 2rem 1.25rem;
-    }
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
-    }
-    h1 { font-size: 1.5rem; margin: 0; }
-
-    .btn {
-      display: inline-block;
-      font: inherit;
-      font-size: .875rem;
-      padding: .4rem .85rem;
-      border: 1px solid #d0d5db;
-      border-radius: 6px;
-      background: #fff;
-      color: #1f2328;
-      text-decoration: none;
-      cursor: pointer;
-      transition: background .15s, border-color .15s;
-    }
-    .btn:hover { background: #f0f1f3; border-color: #b9c0c8; }
-    .btn-primary {
-      background: #1f6feb;
-      border-color: #1f6feb;
-      color: #fff;
-    }
-    .btn-primary:hover { background: #1a5fd0; border-color: #1a5fd0; }
-    .btn-danger { color: #c0362c; }
-    .btn-danger:hover { background: #fdecea; border-color: #e6b3ae; }
-
-    .key-list { display: flex; flex-direction: column; gap: .75rem; }
-    .key {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 1rem;
-      background: #fff;
-      border: 1px solid #e3e6ea;
-      border-radius: 10px;
-      padding: 1rem 1.1rem;
-      box-shadow: 0 1px 2px rgba(0,0,0,.04);
-    }
-    .key-main { min-width: 0; }
-    .key-title {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: .25rem;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .key-env { color: #1f2328; }
-    .key-source { color: #57606a; font-weight: 500; }
-    .key-desc {
-      max-width: 100ch;
-      color: #57606a;
-      font-size: .875rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .key-id {
-      margin-top: .35rem;
-      color: #999;
-      font-size: .75rem;
-    }
-    .key-id .muted-empty { color: #b0b4b9; font-style: italic; }
-
-    .key-side {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: .6rem;
-      flex-shrink: 0;
-    }
-    .badge {
-      font-size: .75rem;
-      font-weight: 600;
-      padding: .15rem .55rem;
-      border-radius: 999px;
-      border: 1px solid transparent;
-    }
-    .badge.active { color: #1a7f37; border-color: #1a7f37; background: #eaf7ee; }
-    .badge.inactive { color: #c0362c; border-color: #c0362c; background: #fdecea; }
-
-    .key-actions { display: flex; align-items: center; gap: .5rem; }
-    .key-actions form { margin: 0; }
-
-    .empty {
-      background: #fff;
-      border: 1px dashed #d0d5db;
-      border-radius: 10px;
-      padding: 2rem;
-      text-align: center;
-      color: #57606a;
-    }
-  </style>
+  <title>authscope</title>
+  {{template "styles" .}}
 </head>
 <body>
+  {{template "topbar" .}}
   <div class="container">
     <header>
       <h1>Keys</h1>
@@ -141,7 +30,7 @@
           <span class="badge {{if .IsActive}}active{{else}}inactive{{end}}">
             {{if .IsActive}}Active{{else}}Inactive{{end}}
           </span>
-          <div class="key-actions">
+          <div class="actions">
             <a class="btn" href="/key/{{.GetID}}">Details</a>
             <form method="post" action="/key/{{.GetID}}/delete"
                   onsubmit="return confirm('Delete this key?')">

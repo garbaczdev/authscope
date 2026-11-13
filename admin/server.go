@@ -180,7 +180,6 @@ func (s *server) handleKeyPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	// Check whether the token is provided as cookie (key just created)
 	c, err := r.Cookie(tokenCookie)
 	token := ""
@@ -198,7 +197,6 @@ func (s *server) handleKeyPage(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-
 	// Render key page
 	s.render(
 		w,
@@ -215,12 +213,151 @@ func (s *server) handleKeyPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleKeyEditForm(w http.ResponseWriter, r *http.Request) {
+	// Extract the key id from the path
+	keyID, err := strconv.ParseUint(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Retrieve the key from the store
+	key, ok, err := s.store.Get(uint(keyID))
+	if err != nil {
+		s.logger.Error("edit key", "err", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Render the key form
+	s.render(
+		w,
+		http.StatusOK,
+		"keyform",
+		struct{
+			Key store.Key
+			Title string
+			FormHeader string
+			SubmitButtonText string
+			Errors []string
+		}{
+			Key: key,
+			Title: fmt.Sprintf("authscope - edit key %d", keyID),
+			FormHeader: fmt.Sprintf("Edit Key %d", keyID),
+			SubmitButtonText: "Submit Changes",
+			Errors: []string{},
+		},
+	)
 }
 
 func (s *server) handleKeyEditSubmit(w http.ResponseWriter, r *http.Request) {
+	// Extract the key id from the path
+	keyID, err := strconv.ParseUint(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Retrieve the key from the store
+	key, ok, err := s.store.Get(uint(keyID))
+	if err != nil {
+		s.logger.Error("edit key submit", "err", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Try to parse the submitted form.
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "malformed form", http.StatusBadRequest)
+		return
+	}
+
+	// Set the values to the key
+	_, key.IsActive = r.PostForm["isActive"]
+	key.Environment = strings.ToLower(strings.TrimSpace(r.PostForm.Get("environment")))
+	key.Source = strings.ToLower(strings.TrimSpace(r.PostForm.Get("source")))
+	key.Description = strings.TrimSpace(r.PostForm.Get("description"))
+
+	// Validate the submitted fields
+	validationErrors := key.ValidateAll()
+
+	if len(validationErrors) > 0 {
+		// Convert errors to strings
+		errorStrings := make([]string, len(validationErrors))
+		for idx := range validationErrors {
+			errorStrings[idx] = validationErrors[idx].Error()
+		}
+		// Render page with errors
+		s.render(
+			w,
+			http.StatusOK,
+			"keyform",
+			struct{
+				Key store.Key
+				Title string
+				FormHeader string
+				SubmitButtonText string
+				Errors []string
+			}{
+				Key: key,
+				Title: fmt.Sprintf("authscope - edit key %d", keyID),
+				FormHeader: fmt.Sprintf("Edit Key %d", keyID),
+				SubmitButtonText: "Submit Changes",
+				Errors: errorStrings,
+			},
+		)
+		return
+	}
+
+	// Create key in the datastore
+	updatedKey, err := s.store.Update(key)
+	if err != nil {
+		s.logger.Error("edit key submit update", "err", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	// Redirect to the key page which should show the token
+	http.Redirect(w, r, fmt.Sprintf("/key/%d", updatedKey.GetID()), http.StatusSeeOther)
 }
 
 func (s *server) handleKeyDelete(w http.ResponseWriter, r *http.Request) {
+	// Extract the key id from the path
+	keyID, err := strconv.ParseUint(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Retrieve the key from the store
+	_, ok, err := s.store.Get(uint(keyID))
+	if err != nil {
+		s.logger.Error("delete key get", "err", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Delete the key from the store
+	err = s.store.Delete(uint(keyID))
+	if err != nil {
+		s.logger.Error("delete key delete", "err", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	// Return to the main page
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 // render buffers the output so a mid-render template error doesn't leave a

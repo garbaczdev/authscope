@@ -68,11 +68,17 @@ func (s *server) handleHome(w http.ResponseWriter, r *http.Request) {
 		page = int(p)
 	}
 
-	keys, _, err := s.store.Search(searchKeywords, (page - 1) * maxKeysPerPage, maxKeysPerPage)
+	keys, total, err := s.store.Search(searchKeywords, (page - 1) * maxKeysPerPage, maxKeysPerPage)
 	if err != nil {
 		s.logger.Error("index search keys", "err", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
+	}
+
+	// Derive the pagination bounds so the template stays arithmetic-free.
+	totalPages := (total + maxKeysPerPage - 1) / maxKeysPerPage
+	if totalPages < 1 {
+		totalPages = 1
 	}
 
 	s.render(
@@ -82,9 +88,21 @@ func (s *server) handleHome(w http.ResponseWriter, r *http.Request) {
 		struct{
 			Keys []store.Key
 			SearchQuery string
+			Page int
+			PrevPage int
+			NextPage int
+			TotalPages int
+			HasPrev bool
+			HasNext bool
 		}{
 			Keys: keys,
 			SearchQuery: qSearch,
+			Page: page,
+			PrevPage: page - 1,
+			NextPage: page + 1,
+			TotalPages: totalPages,
+			HasPrev: page > 1,
+			HasNext: page < totalPages,
 		},
 	)
 }

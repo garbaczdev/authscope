@@ -96,9 +96,19 @@
     </div>
 
     <nav class="pagination" aria-label="Pagination">
+      {{if .HasPrev}}
+      <a class="btn" href="/?q={{.SearchQuery | urlquery}}&amp;page={{.PrevPage}}">Prev</a>
+      {{else}}
       <button class="btn" type="button" disabled>Prev</button>
-      <span class="page-info">Page 1 of 1</span>
+      {{end}}
+
+      <span class="page-info">Page {{.Page}} of {{.TotalPages}}</span>
+
+      {{if .HasNext}}
+      <a class="btn" href="/?q={{.SearchQuery | urlquery}}&amp;page={{.NextPage}}">Next</a>
+      {{else}}
       <button class="btn" type="button" disabled>Next</button>
+      {{end}}
     </nav>
   </div>
 </body>

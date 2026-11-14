@@ -27,12 +27,15 @@ func TestCreateDeleteKey(t *testing.T) {
 	defer reg.Close()
 
 	// Ensure there are no keys at the start
-	keys, err := reg.List(10, 0)
+	keys, total, err := reg.List(0, 10)
 	if err != nil {
 		t.Fatalf("could not list keys: %v", err)
 	}
 	if len(keys) != 0 {
 		t.Fatalf("there are %d keys in a newly initialized db", len(keys))
+	}
+	if total != 0 {
+		t.Fatalf("there are %d keys in a newly initialized db", total)
 	}
 
 	// Create a key
@@ -48,12 +51,15 @@ func TestCreateDeleteKey(t *testing.T) {
 	}
 
 	// Ensure that there is a key in the database
-	keys, err = reg.List(10, 0)
+	keys, total, err = reg.List(0, 10)
 	if err != nil {
 		t.Fatalf("could not list keys: %v", err)
 	}
 	if len(keys) != 1 {
 		t.Fatalf("there are %d keys after creating 1 key", len(keys))
+	}
+	if total != 1 {
+		t.Fatalf("there are %d keys after creating 1 key", total)
 	}
 
 	// Delete the created key
@@ -62,12 +68,15 @@ func TestCreateDeleteKey(t *testing.T) {
 	}
 
 	// Ensure the deletion was correct
-	keys, err = reg.List(10, 0)
+	keys, total, err = reg.List(0, 10)
 	if err != nil {
 		t.Fatalf("could not list keys: %v", err)
 	}
 	if len(keys) != 0 {
 		t.Fatalf("there are %d keys after deleting created key", len(keys))
+	}
+	if total != 0 {
+		t.Fatalf("there are %d keys after deleting created key", total)
 	}
 
 	if _, ok, _ := reg.Get(createdKey.GetID()); ok {
@@ -276,12 +285,15 @@ func TestCreateRejectsInvalidKey(t *testing.T) {
 	}
 
 	// A rejected key must not be persisted.
-	keys, err := reg.List(10, 0)
+	keys, total, err := reg.List(0, 10)
 	if err != nil {
 		t.Fatalf("could not list keys: %v", err)
 	}
 	if len(keys) != 0 {
 		t.Fatalf("there are %d keys after a rejected create", len(keys))
+	}
+	if total != 0 {
+		t.Fatalf("there are %d keys after a rejected create", total)
 	}
 }
 
@@ -424,12 +436,15 @@ func TestCreateRejectsKeyWithID(t *testing.T) {
 		t.Fatalf("Create() error = %v, want ErrInvalidKey", err)
 	}
 
-	keys, err := reg.List(10, 0)
+	keys, total, err := reg.List(0, 10)
 	if err != nil {
 		t.Fatalf("could not list keys: %v", err)
 	}
 	if len(keys) != 1 {
 		t.Fatalf("there are %d keys after a rejected create", len(keys))
+	}
+	if total != 1 {
+		t.Fatalf("there are %d keys after a rejected create", total)
 	}
 }
 
@@ -524,7 +539,7 @@ func TestListRejectsInvalidPagination(t *testing.T) {
 	}
 
 	for _, tc := range invalid {
-		if _, err := reg.List(tc.limit, tc.offset); !errors.Is(err, ErrInvalidPagination) {
+		if _, _, err := reg.List(tc.offset, tc.limit); !errors.Is(err, ErrInvalidPagination) {
 			t.Errorf("%s: List() error = %v, want ErrInvalidPagination", tc.name, err)
 		}
 	}
@@ -540,7 +555,7 @@ func TestListRejectsInvalidPagination(t *testing.T) {
 	}
 
 	for _, tc := range valid {
-		keys, err := reg.List(tc.limit, tc.offset)
+		keys, total, err := reg.List(tc.offset, tc.limit)
 		if err != nil {
 			t.Errorf("%s: List() error = %v, want nil", tc.name, err)
 			continue
@@ -550,6 +565,9 @@ func TestListRejectsInvalidPagination(t *testing.T) {
 		}
 		if len(keys) != 0 {
 			t.Errorf("%s: List() returned %d keys, want 0", tc.name, len(keys))
+		}
+		if total != 0 {
+			t.Errorf("%s: List() total = %d, want 0", tc.name, total)
 		}
 	}
 }

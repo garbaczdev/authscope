@@ -233,20 +233,10 @@ func (r *Registry) Update(key Key) (Key, error) {
 	return kr.ToKey(), nil
 }
 
-func (r *Registry) List(limit, offset int) ([]Key, error) {
-	if err := validatePagination(limit, offset); err != nil {
-		return nil, err
-	}
 
-	var rows []keyRow
-	if err := r.db.Order("created_at DESC").Offset(offset).Limit(limit).Find(&rows).Error; err != nil {
-		return nil, err
-	}
-	keys := make([]Key, len(rows))
-	for i, kr := range rows {
-		keys[i] = kr.ToKey()
-	}
-	return keys, nil
+func (r *Registry) List(offset int, limit int) ([]Key, int, error) {
+	keys, count, err := r.Search([]string{}, offset, limit)
+	return keys, count, err
 }
 
 // Count returns the number of keys in the database.

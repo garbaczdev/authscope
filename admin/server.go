@@ -26,7 +26,7 @@ type Store interface {
 	Delete(keyID uint) error
 	Create(key store.Key) (store.Key, string, error)
 	Update(key store.Key) (store.Key, error)
-	List(limit, offset int) ([]store.Key, error)
+	List(offset, limit int) ([]store.Key, int, error)
 }
 
 
@@ -37,7 +37,7 @@ type server struct {
 }
 
 func (s *server) handleHome(w http.ResponseWriter, r *http.Request) {
-	keys, err := s.store.List(10, 0)
+	keys, _, err := s.store.List(0, 10)
 	if err != nil {
 		s.logger.Error("list keys", "err", err)
 	}

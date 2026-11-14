@@ -3,6 +3,7 @@ package admin
 import (
 	"bytes"
 	"embed"
+	"errors"
 	"fmt"
 	"html/template"
 	"log/slog"
@@ -398,7 +399,11 @@ func (s *server) ensureCorrectKeyForm(
 
 type Option func(s *server) error
 
-func New(reg Store, opts ...Option) (http.Handler, error) {
+func New(st Store, opts ...Option) (http.Handler, error) {
+	if st == nil {
+		return nil, errors.New("verify: store must not be nil")
+	}
+
 	// Load in the templates
 	tmpl, err := template.New("").ParseFS(templateFiles, "templates/*.html")
 	if err != nil {
@@ -407,7 +412,7 @@ func New(reg Store, opts ...Option) (http.Handler, error) {
 
 	// Create a server with default settings
 	s := &server{
-		store: reg,
+		store: st,
 		logger: slog.Default(),
 		tmpl: tmpl,
 	}

@@ -30,16 +30,6 @@ const (
 	maxTokenLen = 4096
 )
 
-type AuthInfo struct {
-	KeyID uint
-	// true if the token is authorized
-	IsAuthorized bool
-	// Name of the key's environment
-	Environment string
-	// Name of the key's source
-	Source string
-}
-
 // The purpose of this object is to act as middleware between key store and clients.
 // There are 2 types of clients:
 // - Auth client that requires fast in-memory lookups to authorize keys via api
@@ -91,9 +81,13 @@ func (r *Registry) Close() (err error) {
 	return sqlDB.Close()
 }
 
-func (r *Registry) Authorize(token string) (AuthInfo, error) {
+// Authorize returns a key that corresponds to the provided token.
+// If a key is found for the token, that key will be returned along with ok=true.
+// If no key was found for that token, it returns ok=false.
+// If an unexpected error occurred during the check, it returns err!=nil.
+func (r *Registry) Authorize(token string) (key Key, ok bool, err error) {
 	if token == "" || len(token) > maxTokenLen {
-		return AuthInfo{}, nil
+		return Key{}, false, nil
 	}
 
 	tokenHash := hashToken(token)
@@ -104,24 +98,13 @@ func (r *Registry) Authorize(token string) (AuthInfo, error) {
 	if err := r.db.First(&kr, "token_hash = ?", tokenHash).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// No key found for that token
-			return AuthInfo{IsAuthorized: false}, nil
+			return Key{}, false, nil
 		}
 		// Anything else is a genuine DB failure.
-		return AuthInfo{}, err
+		return Key{}, false, err
 	}
 
-	if !kr.IsActive {
-		// Key is not active
-		return AuthInfo{IsAuthorized: false}, nil
-	}
-
-	// Key found for that token
-	return AuthInfo{
-		KeyID:        kr.ID,
-		IsAuthorized: true,
-		Environment:  kr.Environment,
-		Source:       kr.Source,
-	}, nil
+	return kr.ToKey(), true, nil
 }
 
 func (r *Registry) Get(keyID uint) (Key, bool, error) {

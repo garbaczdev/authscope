@@ -84,11 +84,11 @@ func TestCreateDeleteKey(t *testing.T) {
 	}
 
 	// Check authorization after deletion
-	authInfo, err := reg.Authorize(token)
+	_, ok, err := reg.Authorize(token)
 	if err != nil {
 		t.Fatalf("could not authorize the created key: %v", err)
 	}
-	if authInfo.IsAuthorized {
+	if ok {
 		t.Errorf("just deleted key is still authorized")
 	}
 
@@ -174,33 +174,33 @@ func TestAuthorizeKey(t *testing.T) {
 	}
 
 	// Authorize the key
-	authInfo, err := reg.Authorize(token)
+	key, ok, err := reg.Authorize(token)
 	if err != nil {
 		t.Fatalf("could not authorize the created key: %v", err)
 	}
-	if !authInfo.IsAuthorized {
+	if !ok {
 		t.Errorf("newly created key is not authorized")
 	}
-	if authInfo.Environment != keyToCreate.Environment {
+	if key.Environment != keyToCreate.Environment {
 		t.Errorf(
-			"authInfo environment does not match. expected:%s, got:%s",
+			"key environment does not match. expected:%s, got:%s",
 			keyToCreate.Environment,
-			authInfo.Environment,
+			key.Environment,
 		)
 	}
-	if authInfo.Source != keyToCreate.Source {
+	if key.Source != keyToCreate.Source {
 		t.Errorf(
-			"authInfo source does not match. expected:%s, got:%s",
+			"key source does not match. expected:%s, got:%s",
 			keyToCreate.Source,
-			authInfo.Source,
+			key.Source,
 		)
 	}
 
-	authInfo, err = reg.Authorize("random-nonexisting-key")
+	key, ok, err = reg.Authorize("random-nonexisting-key")
 	if err != nil {
 		t.Fatalf("could not authorize a nonexisting key: %v", err)
 	}
-	if authInfo.IsAuthorized {
+	if ok {
 		t.Errorf("nonexisting key correctly authorized")
 	}
 }
@@ -237,25 +237,25 @@ func TestUpdateKey(t *testing.T) {
 	}
 
 	// Authorize the key
-	authInfo, err := reg.Authorize(token)
+	key, ok, err := reg.Authorize(token)
 	if err != nil {
 		t.Fatalf("could not authorize the created key: %v", err)
 	}
-	if !authInfo.IsAuthorized {
+	if !ok {
 		t.Errorf("newly created key is not authorized")
 	}
-	if authInfo.Environment != createdKey.Environment {
+	if key.Environment != createdKey.Environment {
 		t.Errorf(
-			"authInfo environment does not match. expected:%s, got:%s",
+			"key environment does not match. expected:%s, got:%s",
 			createdKey.Environment,
-			authInfo.Environment,
+			key.Environment,
 		)
 	}
-	if authInfo.Source != createdKey.Source {
+	if key.Source != createdKey.Source {
 		t.Errorf(
-			"authInfo source does not match. expected:%s, got:%s",
+			"key source does not match. expected:%s, got:%s",
 			createdKey.Source,
-			authInfo.Source,
+			key.Source,
 		)
 	}
 
@@ -382,11 +382,11 @@ func TestAuthorizeRejectsBadTokens(t *testing.T) {
 	}
 
 	for _, tc := range tokens {
-		info, err := reg.Authorize(tc.token)
+		_, ok, err := reg.Authorize(tc.token)
 		if err != nil {
 			t.Errorf("%s: Authorize() error = %v, want nil", tc.name, err)
 		}
-		if info.IsAuthorized {
+		if ok {
 			t.Errorf("%s: Authorize() authorized an invalid token", tc.name)
 		}
 	}
@@ -752,11 +752,14 @@ func TestCreateInactiveKey(t *testing.T) {
 		t.Error("created key has no ID")
 	}
 
-	info, err := reg.Authorize(token)
+	key, ok, err := reg.Authorize(token)
 	if err != nil {
 		t.Fatalf("could not authorize the created key: %v", err)
 	}
-	if info.IsAuthorized {
-		t.Error("inactive key is authorized")
+	if !ok {
+		t.Fatal("inactive key was not found by Authorize")
+	}
+	if key.IsActive {
+		t.Error("inactive key reported as active")
 	}
 }

@@ -6,10 +6,55 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>authscope</title>
   {{template "styles" .}}
+  <style>
+    .searchbar {
+      display: flex;
+      gap: .5rem;
+      margin-bottom: 1.5rem;
+    }
+    .searchbar input[type="search"] {
+      flex: 1;
+      min-width: 0;
+      font: inherit;
+      font-size: .9rem;
+      padding: .5rem .65rem;
+      border: 1px solid #d0d5db;
+      border-radius: 6px;
+      background: #fff;
+    }
+    .searchbar input[type="search"]:focus {
+      outline: none;
+      border-color: #1f6feb;
+      box-shadow: 0 0 0 3px rgba(31,111,235,.15);
+    }
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .75rem;
+      margin-top: 1.5rem;
+    }
+    .pagination .page-info {
+      font-size: .875rem;
+      color: #57606a;
+    }
+    .pagination .btn[disabled] {
+      opacity: .5;
+      cursor: default;
+      pointer-events: none;
+    }
+  </style>
 </head>
 <body>
   {{template "topbar" .}}
   <div class="container">
+    <form class="searchbar" method="get" action="/">
+      <input type="search" name="q" placeholder="Search keys…" aria-label="Search keys"
+         value="{{.SearchQuery}}"
+      >
+      <button class="btn btn-primary" type="submit">Search</button>
+    </form>
+
     <header>
       <h1>Keys</h1>
       <a class="btn btn-primary" href="/key/new">Create Key</a>
@@ -40,9 +85,21 @@
         </div>
       </div>
       {{else}}
-      <div class="empty">No keys yet.</div>
+
+        {{if .SearchQuery}}
+          <div class="empty">No keys for "{{.SearchQuery}}"</div>
+        {{else}}
+          <div class="empty">No keys yet.</div>
+        {{end}}
+
       {{end}}
     </div>
+
+    <nav class="pagination" aria-label="Pagination">
+      <button class="btn" type="button" disabled>Prev</button>
+      <span class="page-info">Page 1 of 1</span>
+      <button class="btn" type="button" disabled>Next</button>
+    </nav>
   </div>
 </body>
 </html>

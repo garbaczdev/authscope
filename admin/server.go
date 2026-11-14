@@ -14,6 +14,8 @@ import (
 )
 
 const (
+	// Maximum number of keys listed on a page
+	maxKeysPerPage=10
 	tokenCookie="key_token"
 )
 
@@ -27,6 +29,7 @@ type Store interface {
 	Create(key store.Key) (store.Key, string, error)
 	Update(key store.Key) (store.Key, error)
 	List(offset, limit int) ([]store.Key, int, error)
+	Search(keywords []string, offset, limit int) ([]store.Key, int, error)
 }
 
 
@@ -37,9 +40,39 @@ type server struct {
 }
 
 func (s *server) handleHome(w http.ResponseWriter, r *http.Request) {
-	keys, _, err := s.store.List(0, 10)
+	// search keywords provided by the user (default is empty)
+	searchKeywords := []string{}
+	// current page (default 1)
+	page := 1
+
+	// Extract URL query string
+	q := r.URL.Query()
+
+	// Handle search queries
+	qSearch := strings.TrimSpace(q.Get("q"))
+	if len(qSearch) > 0 {
+		searchKeywords = strings.Split(
+			strings.ToLower(qSearch),
+			" ",
+		)
+	}
+
+	// Handle pagination
+	qPage := strings.TrimSpace(q.Get("page"))
+	if len(qPage) > 0 {
+		p, err := strconv.ParseUint(qPage, 10, 32)
+		if err != nil || p <= 0 {
+			http.Error(w, "malformed page number", http.StatusBadRequest)
+			return
+		}
+		page = int(p)
+	}
+
+	keys, _, err := s.store.Search(searchKeywords, (page - 1) * maxKeysPerPage, maxKeysPerPage)
 	if err != nil {
-		s.logger.Error("list keys", "err", err)
+		s.logger.Error("index search keys", "err", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
 	}
 
 	s.render(
@@ -48,8 +81,10 @@ func (s *server) handleHome(w http.ResponseWriter, r *http.Request) {
 		"index",
 		struct{
 			Keys []store.Key
+			SearchQuery string
 		}{
 			Keys: keys,
+			SearchQuery: qSearch,
 		},
 	)
 }

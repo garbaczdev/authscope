@@ -23,12 +23,10 @@ const (
 var templateFiles embed.FS
 
 type Store interface {
-	FindKeyByToken(token string) (store.Key, bool, error)
 	Get(keyID uint) (store.Key, bool, error)
 	Delete(keyID uint) error
 	Create(key store.Key) (store.Key, string, error)
 	Update(key store.Key) (store.Key, error)
-	List(offset, limit int) ([]store.Key, int, error)
 	Search(keywords []string, offset, limit int) ([]store.Key, int, error)
 }
 

@@ -84,7 +84,7 @@ func TestCreateDeleteKey(t *testing.T) {
 	}
 
 	// Check authorization after deletion
-	_, ok, err := reg.Authorize(token)
+	_, ok, err := reg.FindKeyByToken(token)
 	if err != nil {
 		t.Fatalf("could not authorize the created key: %v", err)
 	}
@@ -157,7 +157,7 @@ func TestGetKey(t *testing.T) {
 	}
 }
 
-func TestAuthorizeKey(t *testing.T) {
+func TestFindKeyByToken(t *testing.T) {
 	reg := newTestRegistry(t)
 	defer reg.Close()
 
@@ -173,8 +173,8 @@ func TestAuthorizeKey(t *testing.T) {
 		t.Fatalf("could not create a key: %v", err)
 	}
 
-	// Authorize the key
-	key, ok, err := reg.Authorize(token)
+	// Find the key by token
+	key, ok, err := reg.FindKeyByToken(token)
 	if err != nil {
 		t.Fatalf("could not authorize the created key: %v", err)
 	}
@@ -196,7 +196,7 @@ func TestAuthorizeKey(t *testing.T) {
 		)
 	}
 
-	key, ok, err = reg.Authorize("random-nonexisting-key")
+	key, ok, err = reg.FindKeyByToken("random-nonexisting-key")
 	if err != nil {
 		t.Fatalf("could not authorize a nonexisting key: %v", err)
 	}
@@ -236,8 +236,8 @@ func TestUpdateKey(t *testing.T) {
 		t.Fatalf("could not update the key: %v", err)
 	}
 
-	// Authorize the key
-	key, ok, err := reg.Authorize(token)
+	// Find the key by token
+	key, ok, err := reg.FindKeyByToken(token)
 	if err != nil {
 		t.Fatalf("could not authorize the created key: %v", err)
 	}
@@ -365,7 +365,7 @@ func TestNewRegistryRejectsBadPaths(t *testing.T) {
 	}
 }
 
-func TestAuthorizeRejectsBadTokens(t *testing.T) {
+func TestFindKeyByTokenRejectsBadTokens(t *testing.T) {
 	reg := newTestRegistry(t)
 	defer reg.Close()
 
@@ -382,12 +382,12 @@ func TestAuthorizeRejectsBadTokens(t *testing.T) {
 	}
 
 	for _, tc := range tokens {
-		_, ok, err := reg.Authorize(tc.token)
+		_, ok, err := reg.FindKeyByToken(tc.token)
 		if err != nil {
-			t.Errorf("%s: Authorize() error = %v, want nil", tc.name, err)
+			t.Errorf("%s: FindKeyByToken() error = %v, want nil", tc.name, err)
 		}
 		if ok {
-			t.Errorf("%s: Authorize() authorized an invalid token", tc.name)
+			t.Errorf("%s: FindKeyByToken() returned a key for an invalid token", tc.name)
 		}
 	}
 }
@@ -752,12 +752,12 @@ func TestCreateInactiveKey(t *testing.T) {
 		t.Error("created key has no ID")
 	}
 
-	key, ok, err := reg.Authorize(token)
+	key, ok, err := reg.FindKeyByToken(token)
 	if err != nil {
 		t.Fatalf("could not authorize the created key: %v", err)
 	}
 	if !ok {
-		t.Fatal("inactive key was not found by Authorize")
+		t.Fatal("inactive key was not found by FindKeyByToken")
 	}
 	if key.IsActive {
 		t.Error("inactive key reported as active")

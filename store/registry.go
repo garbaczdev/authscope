@@ -26,7 +26,7 @@ var (
 const (
 	// MaxListLimit is the maximum number of keys List returns in one call.
 	MaxListLimit = 1000
-	// maxTokenLen bounds the work Authorize performs on untrusted input.
+	// maxTokenLen bounds the work FindKeyByToken performs on untrusted input.
 	maxTokenLen = 4096
 )
 
@@ -81,11 +81,11 @@ func (r *Registry) Close() (err error) {
 	return sqlDB.Close()
 }
 
-// Authorize returns a key that corresponds to the provided token.
+// FindKeyByToken returns a key that corresponds to the provided token.
 // If a key is found for the token, that key will be returned along with ok=true.
 // If no key was found for that token, it returns ok=false.
 // If an unexpected error occurred during the check, it returns err!=nil.
-func (r *Registry) Authorize(token string) (key Key, ok bool, err error) {
+func (r *Registry) FindKeyByToken(token string) (key Key, ok bool, err error) {
 	if token == "" || len(token) > maxTokenLen {
 		return Key{}, false, nil
 	}

@@ -21,7 +21,7 @@ const (
 var templateFiles embed.FS
 
 type Store interface {
-	Authorize(token string) (store.Key, bool, error)
+	FindKeyByToken(token string) (store.Key, bool, error)
 	Get(keyID uint) (store.Key, bool, error)
 	Delete(keyID uint) error
 	Create(key store.Key) (store.Key, string, error)

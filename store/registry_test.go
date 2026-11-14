@@ -554,6 +554,170 @@ func TestListRejectsInvalidPagination(t *testing.T) {
 	}
 }
 
+func TestSearch(t *testing.T) {
+	reg := newTestRegistry(t)
+	defer reg.Close()
+
+	// Keys deliberately share and vary fields to exercise matching. Note the
+	// sources "api_v2" and "apixv2": a literal search for "api_v2" must not
+	// treat "_" as a single-character wildcard.
+	seeds := []Key{
+		{IsActive: true, Environment: "prod", Source: "api", Description: "billing service"},
+		{IsActive: true, Environment: "prod", Source: "web", Description: "frontend"},
+		{IsActive: true, Environment: "dev", Source: "api_v2", Description: "internal"},
+		{IsActive: true, Environment: "dev", Source: "apixv2", Description: "internal"},
+	}
+
+	sourceToID := make(map[string]uint, len(seeds))
+	for _, seed := range seeds {
+		created, _, err := reg.Create(seed)
+		if err != nil {
+			t.Fatalf("could not create key %q: %v", seed.Source, err)
+		}
+		sourceToID[seed.Source] = created.GetID()
+	}
+
+	tests := []struct {
+		name     string
+		keywords []string
+		want     []string // expected sources
+	}{
+		{"single keyword matches environment", []string{"prod"}, []string{"api", "web"}},
+		{"single keyword matches source substring", []string{"api"}, []string{"api", "api_v2", "apixv2"}},
+		{"single keyword matches description", []string{"billing"}, []string{"api"}},
+		{"case insensitive", []string{"PROD"}, []string{"api", "web"}},
+		{"underscore is literal", []string{"api_v2"}, []string{"api_v2"}},
+		{"all keywords must match", []string{"prod", "web"}, []string{"web"}},
+		{"keywords span different fields", []string{"prod", "billing"}, []string{"api"}},
+		{"no match", []string{"missing"}, []string{}},
+		{"blank keywords are ignored", []string{"  ", "prod", ""}, []string{"api", "web"}},
+		{"no keywords returns all", nil, []string{"api", "web", "api_v2", "apixv2"}},
+	}
+
+	for _, tc := range tests {
+		keys, total, err := reg.Search(tc.keywords, 0, MaxListLimit)
+		if err != nil {
+			t.Errorf("%s: Search() error = %v, want nil", tc.name, err)
+			continue
+		}
+		if keys == nil {
+			t.Errorf("%s: Search() returned a nil slice, want an empty slice", tc.name)
+			continue
+		}
+		if total != len(tc.want) {
+			t.Errorf("%s: Search() total = %d, want %d", tc.name, total, len(tc.want))
+		}
+
+		got := make(map[string]bool, len(keys))
+		for _, key := range keys {
+			got[key.Source] = true
+		}
+		if len(got) != len(tc.want) {
+			t.Errorf("%s: Search() returned %d keys, want %d", tc.name, len(got), len(tc.want))
+		}
+		for _, want := range tc.want {
+			if !got[want] {
+				t.Errorf("%s: Search() did not return key %q", tc.name, want)
+			}
+		}
+	}
+
+	// Every returned key must be the stored key, not a zero value.
+	keys, _, err := reg.Search([]string{"billing"}, 0, MaxListLimit)
+	if err != nil {
+		t.Fatalf("Search() error = %v, want nil", err)
+	}
+	if len(keys) != 1 || keys[0].GetID() != sourceToID["api"] {
+		t.Errorf("Search() returned wrong key for %q: got %d keys", "billing", len(keys))
+	}
+}
+
+func TestSearchPagination(t *testing.T) {
+	reg := newTestRegistry(t)
+	defer reg.Close()
+
+	// All four keys share the "shared" source so a single keyword matches all.
+	for i := 0; i < 4; i++ {
+		if _, _, err := reg.Create(Key{
+			IsActive:    true,
+			Environment: "prod",
+			Source:      "shared",
+			Description: "key",
+		}); err != nil {
+			t.Fatalf("could not create key: %v", err)
+		}
+	}
+
+	// A page is limited by limit/offset, but total always reports every match.
+	tests := []struct {
+		name      string
+		limit     int
+		offset    int
+		wantKeys  int
+		wantTotal int
+	}{
+		{"first page", 2, 0, 2, 4},
+		{"second page", 2, 2, 2, 4},
+		{"partial last page", 3, 3, 1, 4},
+		{"offset past end", 2, 10, 0, 4},
+	}
+
+	for _, tc := range tests {
+		keys, total, err := reg.Search([]string{"shared"}, tc.offset, tc.limit)
+		if err != nil {
+			t.Errorf("%s: Search() error = %v, want nil", tc.name, err)
+			continue
+		}
+		if len(keys) != tc.wantKeys {
+			t.Errorf("%s: Search() returned %d keys, want %d", tc.name, len(keys), tc.wantKeys)
+		}
+		if total != tc.wantTotal {
+			t.Errorf("%s: Search() total = %d, want %d", tc.name, total, tc.wantTotal)
+		}
+	}
+
+	// Pages must not overlap.
+	first, _, err := reg.Search([]string{"shared"}, 0, 2)
+	if err != nil {
+		t.Fatalf("Search() error = %v, want nil", err)
+	}
+	second, _, err := reg.Search([]string{"shared"}, 2, 2)
+	if err != nil {
+		t.Fatalf("Search() error = %v, want nil", err)
+	}
+	seen := make(map[uint]bool, len(first))
+	for _, key := range first {
+		seen[key.GetID()] = true
+	}
+	for _, key := range second {
+		if seen[key.GetID()] {
+			t.Errorf("key %d appeared on both pages", key.GetID())
+		}
+	}
+}
+
+func TestSearchRejectsInvalidPagination(t *testing.T) {
+	reg := newTestRegistry(t)
+	defer reg.Close()
+
+	invalid := []struct {
+		name   string
+		limit  int
+		offset int
+	}{
+		{"zero limit", 0, 0},
+		{"negative limit", -1, 0},
+		{"limit too large", MaxListLimit + 1, 0},
+		{"negative offset", 1, -1},
+	}
+
+	for _, tc := range invalid {
+		if _, _, err := reg.Search(nil, tc.offset, tc.limit); !errors.Is(err, ErrInvalidPagination) {
+			t.Errorf("%s: Search() error = %v, want ErrInvalidPagination", tc.name, err)
+		}
+	}
+}
+
 func TestCreateInactiveKey(t *testing.T) {
 	reg := newTestRegistry(t)
 	defer reg.Close()

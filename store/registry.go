@@ -234,11 +234,8 @@ func (r *Registry) Update(key Key) (Key, error) {
 }
 
 func (r *Registry) List(limit, offset int) ([]Key, error) {
-	if limit < 1 || limit > MaxListLimit {
-		return nil, fmt.Errorf("%w: limit must be between 1 and %d", ErrInvalidPagination, MaxListLimit)
-	}
-	if offset < 0 {
-		return nil, fmt.Errorf("%w: offset must not be negative", ErrInvalidPagination)
+	if err := validatePagination(limit, offset); err != nil {
+		return nil, err
 	}
 
 	var rows []keyRow
@@ -250,6 +247,81 @@ func (r *Registry) List(limit, offset int) ([]Key, error) {
 		keys[i] = kr.ToKey()
 	}
 	return keys, nil
+}
+
+// Count returns the number of keys in the database.
+func (r *Registry) Count() (int, error) {
+	var count int64
+	if err := r.db.Model(&Key{}).Count(&count).Error; err != nil {
+		return 0, fmt.Errorf("could not count keys in db: %w", err)
+	}
+	return int(count), nil
+}
+
+// Search returns one page of keys that match all of the provided keywords,
+// along with the total number of matching keys across all pages.
+// Matching is case-insensitive and checks whether a keyword appears as a
+// literal substring of the key's Environment, Source or Description. Keywords
+// that are empty or only whitespace are ignored, so an empty keyword list
+// returns every key. Results are newest-first, matching List.
+func (r *Registry) Search(keywords []string, offset int, limit int) ([]Key, int, error) {
+	if err := validatePagination(limit, offset); err != nil {
+		return nil, 0, err
+	}
+
+	// Build the shared filter once; Session() clones it below so the Count and
+	// Find statements do not clobber each other.
+	base := r.db.Model(&keyRow{})
+	for _, keyword := range keywords {
+		keyword = strings.TrimSpace(keyword)
+		if keyword == "" {
+			continue
+		}
+
+		// instr compares literal substrings, so user input such as "%" or "_"
+		// is matched as-is instead of acting as a LIKE wildcard.
+		// A keyword matches when any of the searchable fields contains it.
+		// Passing the nested query to Where makes GORM wrap the ORs in
+		// parentheses, so the AND across keywords keeps correct precedence.
+		base = base.Where(
+			r.db.Where("instr(lower(environment), lower(?)) > 0", keyword).
+				Or("instr(lower(source), lower(?)) > 0", keyword).
+				Or("instr(lower(description), lower(?)) > 0", keyword),
+		)
+	}
+
+	// Total matches across all pages (no limit/offset).
+	var total int64
+	if err := base.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// One page of results.
+	var rows []keyRow
+	if err := base.Session(&gorm.Session{}).
+		Order("created_at DESC, id DESC").
+		Offset(offset).
+		Limit(limit).
+		Find(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+
+	keys := make([]Key, len(rows))
+	for i, kr := range rows {
+		keys[i] = kr.ToKey()
+	}
+	return keys, int(total), nil
+}
+
+// validatePagination checks the bounds shared by List and Search.
+func validatePagination(limit, offset int) error {
+	if limit < 1 || limit > MaxListLimit {
+		return fmt.Errorf("%w: limit must be between 1 and %d", ErrInvalidPagination, MaxListLimit)
+	}
+	if offset < 0 {
+		return fmt.Errorf("%w: offset must not be negative", ErrInvalidPagination)
+	}
+	return nil
 }
 
 func hashToken(token string) string {

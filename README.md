@@ -12,6 +12,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/Go-1.27-00ADD8.svg" alt="Go 1.27">
+  <a href="https://github.com/garbaczdev/authscope/pkgs/container/authscope"><img src="https://img.shields.io/badge/ghcr.io-authscope-2496ED?logo=docker&logoColor=white" alt="Container: ghcr.io/garbaczdev/authscope"></a>
 </p>
 
 <p align="center">
@@ -19,6 +20,15 @@
 </p>
 
 It also ships a small web admin UI for managing access keys.
+
+## Container image
+
+Prebuilt images are published to the GitHub Container Registry on every push to `main`
+(see the [package page](https://github.com/garbaczdev/authscope/pkgs/container/authscope)):
+
+```sh
+docker pull ghcr.io/garbaczdev/authscope:latest
+```
 
 ## How it works
 
@@ -70,7 +80,6 @@ Plain HTTP, form-based, single HTML file, minimal JS. No frontend build. Actions
 - **Fast:** in-memory decision, no external calls.
 - **No secret leakage:** responses never echo the token or any part of it.
 - **Live reload:** adding or revoking a key takes effect without a restart; in-flight requests are unaffected.
-- **Fail-safe:** an invalid config update is rejected and the previous valid config stays active.
 
 ## Example
 

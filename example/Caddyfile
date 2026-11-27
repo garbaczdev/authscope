@@ -1,0 +1,23 @@
+{
+	# No admin API needed for this example.
+	admin off
+}
+
+:4000 {
+	log {
+		output stdout
+	}
+
+	forward_auth authscope:8081 {
+		uri /verify
+		# Drop any client-supplied identity before the auth check.
+		header_up -X-Source
+		header_up -X-Env
+		copy_headers X-Source X-Env
+	}
+
+	reverse_proxy backend:80 {
+		# The auth check consumed the token; don't forward it upstream.
+		header_up -Authorization
+	}
+}

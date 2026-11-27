@@ -1,0 +1,38 @@
+services:
+  backend:
+    image: traefik/whoami:v1.12.0
+    expose:
+      - "80"
+
+  authscope:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    environment:
+      ADMIN_ADDR: 0.0.0.0:8080
+      VERIFY_ADDR: 0.0.0.0:8081
+    ports:
+      - "127.0.0.1:8080:8080"   # admin UI: localhost only
+      - "127.0.0.1:8081:8081"   # verify: compose network + localhost
+    volumes:
+      - authscope-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8081/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "127.0.0.1:4000:4000"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      authscope:
+        condition: service_healthy
+      backend:
+        condition: service_started
+
+volumes:
+  authscope-data:

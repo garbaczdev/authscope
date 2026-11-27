@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"gorm.io/driver/sqlite"
@@ -38,6 +39,11 @@ const (
 // in-memory structure.
 type Registry struct {
 	db *gorm.DB
+
+	// An in-memory index holding all of the keys for quick lookups
+	keyForHash map[string]Key
+	// Corresponding mutex
+	keyMu sync.RWMutex
 }
 
 func NewRegistry(dbPath string) (*Registry, error) {
@@ -69,7 +75,20 @@ func NewRegistry(dbPath string) (*Registry, error) {
 		return nil, err
 	}
 
-	return &Registry{db: db}, nil
+	// Load in all keys to in-memory store
+	var krs []keyRow
+	if err := db.Find(&krs).Error; err != nil {
+		return nil, err
+	}
+	keyForHash := make(map[string]Key)
+	for _, kr := range krs {
+		keyForHash[kr.TokenHash] = kr.ToKey()
+	}
+
+	return &Registry{
+		db: db,
+		keyForHash: keyForHash,
+	}, nil
 }
 
 func (r *Registry) Close() (err error) {
@@ -90,21 +109,19 @@ func (r *Registry) FindKeyByToken(token string) (key Key, ok bool, err error) {
 		return Key{}, false, nil
 	}
 
+	// Get the token hash
 	tokenHash := hashToken(token)
 
-	// Find the key row in the database for that token hash.
-	// TODO: Make this optimal by having an in-memory store.
-	var kr keyRow
-	if err := r.db.First(&kr, "token_hash = ?", tokenHash).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// No key found for that token
-			return Key{}, false, nil
-		}
-		// Anything else is a genuine DB failure.
-		return Key{}, false, err
-	}
+	// Acquire the read lock
+	r.keyMu.RLock()
+	defer r.keyMu.RUnlock()
 
-	return kr.ToKey(), true, nil
+	// Check in the in-memory store
+	if key, ok := r.keyForHash[tokenHash]; ok {
+		return key, true, nil
+	} else {
+		return Key{}, false, nil
+	}
 }
 
 func (r *Registry) Get(keyID uint) (Key, bool, error) {
@@ -127,7 +144,20 @@ func (r *Registry) Get(keyID uint) (Key, bool, error) {
 
 func (r *Registry) Delete(keyID uint) error {
 	if keyID == 0 {
-		return fmt.Errorf("%w: id 0", ErrKeyNotFound)
+		return fmt.Errorf("%w: id %d", ErrKeyNotFound, keyID)
+	}
+
+	// Acquire the write lock
+	r.keyMu.Lock()
+	defer r.keyMu.Unlock()
+
+	// Lookup a key row by it's ID
+	var kr keyRow
+	if err := r.db.First(&kr, keyID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("%w: id %d", ErrKeyNotFound, keyID)
+		}
+		return err
 	}
 
 	// Delete key from the database
@@ -138,6 +168,10 @@ func (r *Registry) Delete(keyID uint) error {
 	if res.RowsAffected == 0 {
 		return fmt.Errorf("%w: id %d", ErrKeyNotFound, keyID)
 	}
+
+	// Reflect in in-memory store
+	delete(r.keyForHash, kr.TokenHash)
+
 	return nil
 }
 
@@ -166,11 +200,26 @@ func (r *Registry) Create(key Key) (Key, string, error) {
 		Description: key.Description,
 		TokenHash:   tokenHash,
 	}
+
+	// Acquire the write lock
+	r.keyMu.Lock()
+	defer r.keyMu.Unlock()
+
+	// Ensure no colission
+	if _, ok := r.keyForHash[tokenHash]; ok {
+		return Key{}, "", errors.New("token hash colission!")
+	}
+	
+	// Persist to DB
 	if err := r.db.Create(&kr).Error; err != nil {
 		return Key{}, "", err
 	}
+	key = kr.ToKey()
+	
+	// Save in in-memory store
+	r.keyForHash[tokenHash] = key
 
-	return kr.ToKey(), token, nil
+	return key, token, nil
 }
 
 func (r *Registry) Update(key Key) (Key, error) {
@@ -183,6 +232,10 @@ func (r *Registry) Update(key Key) (Key, error) {
 	if err := key.Validate(); err != nil {
 		return Key{}, err
 	}
+
+	// Acquire the write lock
+	r.keyMu.Lock()
+	defer r.keyMu.Unlock()
 
 	// Lookup a key row by it's ID
 	var kr keyRow
@@ -213,7 +266,12 @@ func (r *Registry) Update(key Key) (Key, error) {
 	if res.RowsAffected == 0 {
 		return Key{}, fmt.Errorf("%w: id %d", ErrKeyNotFound, key.GetID())
 	}
-	return kr.ToKey(), nil
+	key = kr.ToKey()
+
+	// Persist to in-memory store
+	r.keyForHash[kr.TokenHash] = key
+
+	return key, nil
 }
 
 

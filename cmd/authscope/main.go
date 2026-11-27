@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/garbaczdev/authscope/admin"
 	"github.com/garbaczdev/authscope/store"
@@ -23,10 +24,17 @@ func main() {
 	var (
 		adminAddr  = flag.String("admin-addr", envStr("ADMIN_ADDR", "0.0.0.0:8080"), "address to expose the admin panel to")
 		verifyAddr = flag.String("verify-addr", envStr("VERIFY_ADDR", "0.0.0.0:8081"), "address to expose the verify interface to")
+		dataDir    = flag.String("data-dir", envStr("DATA_DIR", "./data"), "directory authscope stores its data in")
 	)
 	flag.Parse()
 
-	reg, err := store.NewRegistry("./data/store.db")
+	// The data directory is owned by authscope: create it (and any missing
+	// parents) so the SQLite database underneath always has somewhere to live.
+	if err := os.MkdirAll(*dataDir, 0o755); err != nil {
+		log.Fatalf("could not create data directory %q: %v", *dataDir, err)
+	}
+
+	reg, err := store.NewRegistry(filepath.Join(*dataDir, "store.db"))
 	if err != nil {
 		log.Fatalf("could not create registry: %v", err)
 	}

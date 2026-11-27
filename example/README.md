@@ -2,6 +2,7 @@
 
 A minimal stack that exercises authscope as the forward-auth service behind
 [Caddy](https://caddyserver.com), with a mock backend that echoes the request.
+See the [main README](../README.md) for what authscope is and how it works.
 
 ```
 client ──▶ Caddy :4000 ──▶ authscope :8081 /verify

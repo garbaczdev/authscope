@@ -1,11 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"flag"
 
 	"github.com/garbaczdev/authscope/admin"
 	"github.com/garbaczdev/authscope/store"
@@ -21,7 +21,7 @@ func envStr(key, def string) string {
 
 func main() {
 	var (
-		adminAddr = flag.String("admin-addr", envStr("ADMIN_ADDR", "0.0.0.0:8080"), "address to expose the admin panel to")
+		adminAddr  = flag.String("admin-addr", envStr("ADMIN_ADDR", "0.0.0.0:8080"), "address to expose the admin panel to")
 		verifyAddr = flag.String("verify-addr", envStr("VERIFY_ADDR", "0.0.0.0:8081"), "address to expose the verify interface to")
 	)
 	flag.Parse()

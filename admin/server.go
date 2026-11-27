@@ -16,8 +16,8 @@ import (
 
 const (
 	// Maximum number of keys listed on a page
-	maxKeysPerPage=10
-	tokenCookie="key_token"
+	maxKeysPerPage = 10
+	tokenCookie    = "key_token"
 )
 
 //go:embed templates/*.html
@@ -31,11 +31,10 @@ type Store interface {
 	Search(keywords []string, offset, limit int) ([]store.Key, int, error)
 }
 
-
 type server struct {
-	store Store
+	store  Store
 	logger *slog.Logger
-	tmpl *template.Template
+	tmpl   *template.Template
 }
 
 func (s *server) handleHome(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +66,7 @@ func (s *server) handleHome(w http.ResponseWriter, r *http.Request) {
 		page = int(p)
 	}
 
-	keys, total, err := s.store.Search(searchKeywords, (page - 1) * maxKeysPerPage, maxKeysPerPage)
+	keys, total, err := s.store.Search(searchKeywords, (page-1)*maxKeysPerPage, maxKeysPerPage)
 	if err != nil {
 		s.logger.Error("index search keys", "err", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -84,24 +83,24 @@ func (s *server) handleHome(w http.ResponseWriter, r *http.Request) {
 		w,
 		http.StatusOK,
 		"index",
-		struct{
-			Keys []store.Key
+		struct {
+			Keys        []store.Key
 			SearchQuery string
-			Page int
-			PrevPage int
-			NextPage int
-			TotalPages int
-			HasPrev bool
-			HasNext bool
+			Page        int
+			PrevPage    int
+			NextPage    int
+			TotalPages  int
+			HasPrev     bool
+			HasNext     bool
 		}{
-			Keys: keys,
+			Keys:        keys,
 			SearchQuery: qSearch,
-			Page: page,
-			PrevPage: page - 1,
-			NextPage: page + 1,
-			TotalPages: totalPages,
-			HasPrev: page > 1,
-			HasNext: page < totalPages,
+			Page:        page,
+			PrevPage:    page - 1,
+			NextPage:    page + 1,
+			TotalPages:  totalPages,
+			HasPrev:     page > 1,
+			HasNext:     page < totalPages,
 		},
 	)
 }
@@ -109,9 +108,9 @@ func (s *server) handleHome(w http.ResponseWriter, r *http.Request) {
 func (s *server) handleKeyNewForm(w http.ResponseWriter, r *http.Request) {
 	// Mock key given into the form by default
 	mockKey := store.Key{
-		IsActive: true,
+		IsActive:    true,
 		Environment: "",
-		Source: "",
+		Source:      "",
 		Description: "",
 	}
 
@@ -119,16 +118,16 @@ func (s *server) handleKeyNewForm(w http.ResponseWriter, r *http.Request) {
 		w,
 		http.StatusOK,
 		"keyform",
-		struct{
-			Key store.Key
-			Title string
+		struct {
+			Key        store.Key
+			Title      string
 			FormHeader string
-			Errors []string
+			Errors     []string
 		}{
-			Key: mockKey,
-			Title: "authscope - new key",
+			Key:        mockKey,
+			Title:      "authscope - new key",
 			FormHeader: "Create a new key",
-			Errors: []string{},
+			Errors:     []string{},
 		},
 	)
 }
@@ -143,7 +142,9 @@ func (s *server) handleKeyNewSubmit(w http.ResponseWriter, r *http.Request) {
 	// Extract form data into a new key
 	key := store.Key{}
 	ok := s.parseFormIntoKey(w, r, &key)
-	if !ok { return }
+	if !ok {
+		return
+	}
 
 	// Re-render the form if the submitted key is incorrect
 	ok = s.ensureCorrectKeyForm(
@@ -153,7 +154,9 @@ func (s *server) handleKeyNewSubmit(w http.ResponseWriter, r *http.Request) {
 		"authscope - new key",
 		"Create a new key",
 	)
-	if !ok { return }
+	if !ok {
+		return
+	}
 
 	// Create key in the datastore
 	createdKey, token, err := s.store.Create(key)
@@ -164,7 +167,7 @@ func (s *server) handleKeyNewSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set the token as a cookie to be deleted later.
-	// This is a method to have a stateless backend while preventing the 
+	// This is a method to have a stateless backend while preventing the
 	// user from creating multiple keys by accident.
 	http.SetCookie(w, &http.Cookie{
 		Name:     tokenCookie,
@@ -209,11 +212,11 @@ func (s *server) handleKeyPage(w http.ResponseWriter, r *http.Request) {
 		w,
 		http.StatusOK,
 		"key",
-		struct{
-			Key store.Key
+		struct {
+			Key   store.Key
 			Token string
 		}{
-			Key: key,
+			Key:   key,
 			Token: token,
 		},
 	)
@@ -231,16 +234,16 @@ func (s *server) handleKeyEditForm(w http.ResponseWriter, r *http.Request) {
 		w,
 		http.StatusOK,
 		"keyform",
-		struct{
-			Key store.Key
-			Title string
+		struct {
+			Key        store.Key
+			Title      string
 			FormHeader string
-			Errors []string
+			Errors     []string
 		}{
-			Key: key,
-			Title: fmt.Sprintf("authscope - edit key %d", key.GetID()),
+			Key:        key,
+			Title:      fmt.Sprintf("authscope - edit key %d", key.GetID()),
 			FormHeader: fmt.Sprintf("Edit Key %d", key.GetID()),
-			Errors: []string{},
+			Errors:     []string{},
 		},
 	)
 }
@@ -248,11 +251,15 @@ func (s *server) handleKeyEditForm(w http.ResponseWriter, r *http.Request) {
 func (s *server) handleKeyEditSubmit(w http.ResponseWriter, r *http.Request) {
 	// Get the key based on the id provided in the path.
 	key, ok := s.getKeyFromPath(w, r)
-	if !ok { return }
+	if !ok {
+		return
+	}
 
 	// Extract form data into the key
 	ok = s.parseFormIntoKey(w, r, &key)
-	if !ok { return }
+	if !ok {
+		return
+	}
 
 	// If key is incorrect, it will re-render the form!
 	ok = s.ensureCorrectKeyForm(
@@ -262,7 +269,9 @@ func (s *server) handleKeyEditSubmit(w http.ResponseWriter, r *http.Request) {
 		fmt.Sprintf("authscope - edit key %d", key.GetID()),
 		fmt.Sprintf("Edit Key %d", key.GetID()),
 	)
-	if !ok { return }
+	if !ok {
+		return
+	}
 
 	// Create key in the datastore
 	updatedKey, err := s.store.Update(key)
@@ -379,16 +388,16 @@ func (s *server) ensureCorrectKeyForm(
 			w,
 			http.StatusOK,
 			"keyform",
-			struct{
-				Key store.Key
-				Title string
+			struct {
+				Key        store.Key
+				Title      string
 				FormHeader string
-				Errors []string
+				Errors     []string
 			}{
-				Key: key,
-				Title: pageTitle,
+				Key:        key,
+				Title:      pageTitle,
 				FormHeader: formHeader,
-				Errors: errorStrings,
+				Errors:     errorStrings,
 			},
 		)
 		return false
@@ -412,9 +421,9 @@ func New(st Store, opts ...Option) (http.Handler, error) {
 
 	// Create a server with default settings
 	s := &server{
-		store: st,
+		store:  st,
 		logger: slog.Default(),
-		tmpl: tmpl,
+		tmpl:   tmpl,
 	}
 
 	// Apply options to the server
@@ -437,17 +446,26 @@ func New(st Store, opts ...Option) (http.Handler, error) {
 	return mux, nil
 }
 
-
 func isSafeCharacter(char byte) bool {
 	// number
-	if 48 <= char && char <= 57 { return true }
+	if 48 <= char && char <= 57 {
+		return true
+	}
 	// lowercase letter
-	if 97 <= char && char <= 122 { return true }
+	if 97 <= char && char <= 122 {
+		return true
+	}
 	// -
-	if char == 45 { return true }
+	if char == 45 {
+		return true
+	}
 	// _
-	if char == 95 { return true }
+	if char == 95 {
+		return true
+	}
 	// .
-	if char == 46 { return true }
+	if char == 46 {
+		return true
+	}
 	return false
 }

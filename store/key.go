@@ -121,15 +121,25 @@ func (k Key) ValidateAll() []error {
 
 func isSafeCharacter(char byte) bool {
 	// number
-	if 48 <= char && char <= 57 { return true }
+	if 48 <= char && char <= 57 {
+		return true
+	}
 	// lowercase letter
-	if 97 <= char && char <= 122 { return true }
+	if 97 <= char && char <= 122 {
+		return true
+	}
 	// -
-	if char == 45 { return true }
+	if char == 45 {
+		return true
+	}
 	// _
-	if char == 95 { return true }
+	if char == 95 {
+		return true
+	}
 	// .
-	if char == 46 { return true }
+	if char == 46 {
+		return true
+	}
 	// Anything else is invalid
 	return false
 }

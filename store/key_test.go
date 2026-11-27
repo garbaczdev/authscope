@@ -52,12 +52,30 @@ func TestKeyValidate(t *testing.T) {
 			},
 		},
 		{
-			name: "long identifiers and description are allowed",
+			name: "values at the length limit are allowed",
 			key: Key{
-				Environment: strings.Repeat("e", 300),
-				Source:      strings.Repeat("s", 300),
-				Description: strings.Repeat("é", 2048),
+				Environment: strings.Repeat("e", maxIdentifierLen),
+				Source:      strings.Repeat("s", maxIdentifierLen),
+				Description: strings.Repeat("d", maxDescriptionLen),
 			},
+		},
+		{
+			name:       "environment over the length limit",
+			key:        Key{Environment: strings.Repeat("e", maxIdentifierLen+1), Source: "api"},
+			wantErr:    true,
+			wantFields: []string{"environment"},
+		},
+		{
+			name:       "source over the length limit",
+			key:        Key{Environment: "production", Source: strings.Repeat("s", maxIdentifierLen+1)},
+			wantErr:    true,
+			wantFields: []string{"source"},
+		},
+		{
+			name:       "description over the length limit",
+			key:        Key{Environment: "production", Source: "api", Description: strings.Repeat("d", maxDescriptionLen+1)},
+			wantErr:    true,
+			wantFields: []string{"description"},
 		},
 		{
 			name:       "empty environment",

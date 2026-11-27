@@ -1,3 +1,4 @@
+// Package store manages authorization keys and their token lookups.
 package store
 
 import (
@@ -31,12 +32,8 @@ const (
 	maxTokenLen = 4096
 )
 
-// The purpose of this object is to act as middleware between key store and clients.
-// There are 2 types of clients:
-// - Auth client that requires fast in-memory lookups to authorize keys via api
-// - Admin client to modify the actual stored data
-// Why this middleware is needed is because there is both a memory store and an
-// in-memory structure.
+// Registry is the store's public surface for creating, reading, updating and
+// deleting authorization keys.
 type Registry struct {
 	db *gorm.DB
 
@@ -46,6 +43,8 @@ type Registry struct {
 	keyMu sync.RWMutex
 }
 
+// NewRegistry opens the key store at dbPath, creating it if necessary, and
+// returns a Registry ready for use.
 func NewRegistry(dbPath string) (*Registry, error) {
 	if strings.TrimSpace(dbPath) == "" {
 		return nil, errors.New("store: database path must not be empty")
@@ -78,19 +77,23 @@ func NewRegistry(dbPath string) (*Registry, error) {
 	// Load in all keys to in-memory store
 	var krs []keyRow
 	if err := db.Find(&krs).Error; err != nil {
+		if sqlDB, dbErr := db.DB(); dbErr == nil {
+			_ = sqlDB.Close()
+		}
 		return nil, err
 	}
-	keyForHash := make(map[string]Key)
+	keyForHash := make(map[string]Key, len(krs))
 	for _, kr := range krs {
 		keyForHash[kr.TokenHash] = kr.ToKey()
 	}
 
 	return &Registry{
-		db: db,
+		db:         db,
 		keyForHash: keyForHash,
 	}, nil
 }
 
+// Close releases the resources held by the Registry.
 func (r *Registry) Close() (err error) {
 	// Close the connection pool
 	sqlDB, err := r.db.DB()
@@ -100,11 +103,11 @@ func (r *Registry) Close() (err error) {
 	return sqlDB.Close()
 }
 
-// FindKeyByToken returns a key that corresponds to the provided token.
+// FindKeyByToken returns the key that corresponds to the provided token.
 // If a key is found for the token, that key will be returned along with ok=true.
 // If no key was found for that token, it returns ok=false.
 // If an unexpected error occurred during the check, it returns err!=nil.
-func (r *Registry) FindKeyByToken(token string) (key Key, ok bool, err error) {
+func (r *Registry) FindKeyByToken(token string) (Key, bool, error) {
 	if token == "" || len(token) > maxTokenLen {
 		return Key{}, false, nil
 	}
@@ -119,11 +122,12 @@ func (r *Registry) FindKeyByToken(token string) (key Key, ok bool, err error) {
 	// Check in the in-memory store
 	if key, ok := r.keyForHash[tokenHash]; ok {
 		return key, true, nil
-	} else {
-		return Key{}, false, nil
 	}
+	return Key{}, false, nil
 }
 
+// Get returns the key with the given ID. A missing key reports ok=false with a
+// nil error.
 func (r *Registry) Get(keyID uint) (Key, bool, error) {
 	if keyID == 0 {
 		return Key{}, false, nil
@@ -142,6 +146,8 @@ func (r *Registry) Get(keyID uint) (Key, bool, error) {
 	return kr.ToKey(), true, nil
 }
 
+// Delete removes the key with the given ID. It returns ErrKeyNotFound when no
+// such key exists.
 func (r *Registry) Delete(keyID uint) error {
 	if keyID == 0 {
 		return fmt.Errorf("%w: id %d", ErrKeyNotFound, keyID)
@@ -175,6 +181,10 @@ func (r *Registry) Delete(keyID uint) error {
 	return nil
 }
 
+// Create stores a new key and generates a fresh token for it. It returns the
+// stored key and the plaintext token, which is shown only once. A key that
+// already carries an ID, or that fails validation, is rejected before anything
+// is stored.
 func (r *Registry) Create(key Key) (Key, string, error) {
 	// Reject a key that already carries a database ID.
 	if key.GetID() != 0 {
@@ -205,23 +215,20 @@ func (r *Registry) Create(key Key) (Key, string, error) {
 	r.keyMu.Lock()
 	defer r.keyMu.Unlock()
 
-	// Ensure no colission
-	if _, ok := r.keyForHash[tokenHash]; ok {
-		return Key{}, "", errors.New("token hash colission!")
-	}
-	
 	// Persist to DB
 	if err := r.db.Create(&kr).Error; err != nil {
 		return Key{}, "", err
 	}
 	key = kr.ToKey()
-	
+
 	// Save in in-memory store
 	r.keyForHash[tokenHash] = key
 
 	return key, token, nil
 }
 
+// Update overwrites the mutable fields of an existing key. It returns
+// ErrKeyNotFound when the key's ID is zero or unknown.
 func (r *Registry) Update(key Key) (Key, error) {
 	// Ensure that this key is in DB already
 	if key.GetID() == 0 {
@@ -274,19 +281,11 @@ func (r *Registry) Update(key Key) (Key, error) {
 	return key, nil
 }
 
-
+// List returns one page of keys, newest-first, along with the total number of
+// keys across all pages.
 func (r *Registry) List(offset int, limit int) ([]Key, int, error) {
 	keys, count, err := r.Search([]string{}, offset, limit)
 	return keys, count, err
-}
-
-// Count returns the number of keys in the database.
-func (r *Registry) Count() (int, error) {
-	var count int64
-	if err := r.db.Model(&Key{}).Count(&count).Error; err != nil {
-		return 0, fmt.Errorf("could not count keys in db: %w", err)
-	}
-	return int(count), nil
 }
 
 // Search returns one page of keys that match all of the provided keywords,

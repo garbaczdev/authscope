@@ -2,6 +2,7 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"time"
 	"unicode/utf8"
 
@@ -84,6 +85,11 @@ func (k Key) ValidateAll() []error {
 			break
 		}
 	}
+	if len(k.Environment) > maxIdentifierLen {
+		validationErrors = append(validationErrors, fmt.Errorf(
+			"environment field cannot exceed %d characters", maxIdentifierLen,
+		))
+	}
 	for idx := range k.Source {
 		if !isSafeCharacter(k.Source[idx]) {
 			validationErrors = append(validationErrors, errors.New(
@@ -92,11 +98,21 @@ func (k Key) ValidateAll() []error {
 			break
 		}
 	}
+	if len(k.Source) > maxIdentifierLen {
+		validationErrors = append(validationErrors, fmt.Errorf(
+			"source field cannot exceed %d characters", maxIdentifierLen,
+		))
+	}
 
 	// Ensure description is valid utf-8
 	if !utf8.ValidString(k.Description) {
 		validationErrors = append(validationErrors, errors.New(
 			"description field has to be a valid utf-8 string",
+		))
+	}
+	if len(k.Description) > maxDescriptionLen {
+		validationErrors = append(validationErrors, fmt.Errorf(
+			"description field cannot exceed %d characters", maxDescriptionLen,
 		))
 	}
 

@@ -1,6 +1,22 @@
-# authscope
+<h1 align="center">
+  <img src="assets/logo.png" width="96" alt="authscope logo"><br>
+  authscope
+</h1>
 
-Forward-auth service for a reverse proxy. It decides whether an incoming request is authorized. If it is, it returns the identity of the sender, and the proxy attaches that identity before forwarding the request upstream.
+<p align="center">
+  Forward-auth service for a reverse proxy. It decides whether an incoming
+  request is authorized. If it is, it returns the identity of the sender, and
+  the proxy attaches that identity before forwarding the request upstream.
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/Go-1.27-00ADD8.svg" alt="Go 1.27">
+</p>
+
+<p align="center">
+  <img src="assets/admin-ui.png" width="720" alt="authscope admin UI">
+</p>
 
 It also ships a small web admin UI for managing access keys.
 
